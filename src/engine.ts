@@ -3,7 +3,7 @@ import type { BotConfig } from "@/src/config";
 import { momentumBps } from "@/src/indicators";
 import type { LoafApi } from "@/src/loaf-client";
 import type { SchedulerControl } from "@/src/scheduler";
-import type { StrategyCalibration } from "@/src/calibration";
+import type { PortfolioRiskState, StrategyCalibration } from "@/src/calibration";
 import {
   assessStanding,
   explicitMarketMultiplier,
@@ -72,6 +72,7 @@ export class TradingEngine {
     private readonly config: BotConfig,
     private readonly scheduler?: SchedulerControl,
     private readonly calibrations: Record<string, StrategyCalibration> = {},
+    private readonly riskState?: PortfolioRiskState,
   ) {}
 
   async run(): Promise<RunReport> {
@@ -230,7 +231,11 @@ export class TradingEngine {
     const startingBalance = Number(activeRound && "startingBalanceUsdl" in activeRound
       ? activeRound.startingBalanceUsdl
       : this.config.startingBalanceUsdl) || this.config.startingBalanceUsdl;
-    const drawdownPct = portfolioDrawdownPct(portfolio.portfolioValue, startingBalance);
+    const peakPortfolioValue = activeRound && this.riskState?.roundNumber === activeRound.roundNumber
+      ? this.riskState.peakPortfolioValue
+      : 0;
+    const drawdownReferenceValue = Math.max(startingBalance, peakPortfolioValue);
+    const drawdownPct = portfolioDrawdownPct(portfolio.portfolioValue, drawdownReferenceValue);
     const standing = assessStanding(leaderboard, {
       handle: this.config.handle,
       walletAddress: this.config.walletAddress,
@@ -333,6 +338,7 @@ export class TradingEngine {
           cash: portfolio.cash,
           grossExposure,
           makerFeeBps: Number(portfolio.applicableFees?.makerFeeBps ?? competition.makerFeeBps ?? 0),
+          takerFeeBps: Number(portfolio.applicableFees?.takerFeeBps ?? competition.takerFeeBps ?? 0),
           riskMode: standing.riskMode,
           multiplier: explicitMarketMultiplier(tiers, snapshot.market),
           calibration: this.calibrations[snapshot.market.tokenName.toLowerCase()],

@@ -55,6 +55,7 @@ test("2,000 deterministic market scenarios preserve execution invariants", () =>
       cash,
       grossExposure: positionQuantity * ((bid + ask) / 2),
       makerFeeBps: Math.floor(random() * 101),
+      takerFeeBps: Math.floor(random() * 151),
       riskMode: ["preserve", "balanced", "defend", "attack"][scenario % 4] as
         | "preserve"
         | "balanced"

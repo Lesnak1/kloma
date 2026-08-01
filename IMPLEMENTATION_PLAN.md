@@ -17,8 +17,9 @@ Amaç, bilinmeyen puan formülü altında ölçülebilir fee-sonrası edge’i k
 
 - `competition.admitted=true`, başlangıç bakiyesi, `roundRules`, fee, multiplier ve yarışma marketleri doğrulanır.
 - En az 24 saat spread, volatility, momentum, quote fiyat/miktarı ve karar nedeni izlenir.
-- `/api/telemetry` ve `npm run replay` ile her marketin sample, accuracy ve iki-maker-fee sonrası edge’i ölçülür.
-- Her sinyal için 5/15/60 dakika sonraki mid değişimi ölçülür; öngörülen maker edge, ücret ve adverse selection birlikte değerlendirilir.
+- `/api/telemetry`, `npm run replay` ve `npm run market:audit` ile her marketin sample, accuracy, likidite ve iki-maker-fee sonrası edge’i ölçülür.
+- Kalibrasyon 15–45 dakikalık ileri mid değişimini ölçer; 5 dakikalık sinyal ayrıca 15 dakikalık trendle doğrulanır.
+- Ciddi negatif ücret-sonrası edge veya düşük doğruluk üreten market yeni alışlar için karantinaya alınır; recovery ölçümü için sinyal gözlemi sürer.
 - Stale/bozuk book’ta quote, crossed fiyat, pozisyondan fazla sell veya minimum notional ihlali olmamalıdır.
 
 Çıkış kriteri: veri şeması kararlı ve teorik fee-sonrası beklenti pozitif.

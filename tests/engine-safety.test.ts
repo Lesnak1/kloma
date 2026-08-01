@@ -63,7 +63,7 @@ test("kill switch cancels all before any market evaluation", async () => {
   assert.match(report.actions[0].result, /kill-switch/);
 });
 
-test("drawdown breaker cancels all and never loads market details", async () => {
+test("drawdown breaker protects gains using the persisted round peak", async () => {
   let cancelled = 0;
   let details = 0;
   const api: LoafApi = {
@@ -82,7 +82,7 @@ test("drawdown breaker cancels all and never loads market details", async () => 
     async getMarketDetail() { details += 1; return forbidden(); },
     async getCandles() { return forbidden(); },
     async getPortfolio() {
-      return { cash: 90_000, frozen: 0, portfolioValue: 90_000, portfolioPnl: -10_000, portfolioPnlPercent: -10, positions: [] };
+      return { cash: 110_000, frozen: 0, portfolioValue: 110_000, portfolioPnl: 10_000, portfolioPnlPercent: 10, positions: [] };
     },
     async getActiveOrders() { return []; },
     async cancelOrder() { return forbidden(); },
@@ -92,7 +92,13 @@ test("drawdown breaker cancels all and never loads market details", async () => 
     },
     async placeOrder() { return forbidden(); },
   };
-  const report = await new TradingEngine(api, config({ tradingEnabled: true, maxDrawdownPct: 8 })).run();
+  const report = await new TradingEngine(
+    api,
+    config({ tradingEnabled: true, maxDrawdownPct: 8 }),
+    undefined,
+    {},
+    { roundNumber: 1, peakPortfolioValue: 120_000 },
+  ).run();
   assert.equal(cancelled, 1);
   assert.equal(details, 0);
   assert.equal(report.mode, "halted");

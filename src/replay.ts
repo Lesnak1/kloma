@@ -61,10 +61,10 @@ export function analyzeReplay(runs: RunReport[]): ReplayResult {
     const netEdges: number[] = [];
     for (let index = 0; index + 1 < points.length; index += 1) {
       const current = points[index];
-      const next = points.slice(index + 1).find((candidate) => candidate.timestamp - current.timestamp >= 4 * 60);
+      const next = points.slice(index + 1).find((candidate) => candidate.timestamp - current.timestamp >= 15 * 60);
       if (!next) continue;
       const elapsed = next.timestamp - current.timestamp;
-      if (elapsed > 10 * 60) continue;
+      if (elapsed > 45 * 60) continue;
       const forwardBps = (next.mid / current.mid - 1) * 10_000;
       const grossEdge = Math.sign(current.signalBps) * forwardBps;
       grossEdges.push(grossEdge);

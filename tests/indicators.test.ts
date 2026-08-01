@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ema, floorQuantity, microPrice, realizedVolatilityBps, roundToTick } from "@/src/indicators";
+import { aggregateCandles, ema, floorQuantity, microPrice, realizedVolatilityBps, roundToTick } from "@/src/indicators";
 import { candles } from "./helpers";
 
 test("money and quantity rounding obey exchange precision", () => {
@@ -19,4 +19,16 @@ test("indicators return finite values", () => {
   const series = candles(now, 0.001, 60);
   assert.ok((ema(series.map((item) => item.close), 12) ?? 0) > 0);
   assert.ok(Number.isFinite(realizedVolatilityBps(series)));
+});
+
+test("five-minute candles aggregate into deterministic fifteen-minute OHLCV bars", () => {
+  const now = 1_800_000_000;
+  const series = candles(now, 0.001, 12);
+  const aggregated = aggregateCandles(series, 15 * 60);
+  assert.ok(aggregated.length >= 4 && aggregated.length <= 5);
+  assert.equal(aggregated.reduce((sum, candle) => sum + candle.volume, 0), 1_200);
+  for (const candle of aggregated) {
+    assert.equal(candle.time % (15 * 60), 0);
+    assert.ok(candle.high >= candle.low);
+  }
 });

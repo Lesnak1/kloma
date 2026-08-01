@@ -15,12 +15,17 @@ export interface BotConfig {
   cashReservePct: number;
   orderNotionalPct: number;
   stopLossPct: number;
+  minStopLossPct: number;
+  minTakeProfitPct: number;
+  maxTakeProfitPct: number;
   maxMarketsPerTick: number;
   maxOrdersPerTick: number;
   quoteTtlSeconds: number;
   repriceThresholdBps: number;
   minNetEdgeBps: number;
   maxSpreadBps: number;
+  liquidityDepthBps: number;
+  maxBookParticipationPct: number;
   minOrderNotional: number;
   tickSize: number;
   botPublicUrl?: string;
@@ -123,6 +128,17 @@ export function loadConfig(options: { requireApiKey?: boolean } = {}): BotConfig
     throw new Error("TRADING_ENABLED=true requires LOAF_HANDLE or LOAF_WALLET_ADDRESS for rank-aware risk");
   }
 
+  const stopLossPct = numberInRange("STOP_LOSS_PCT", 4, 0.5, 30);
+  const minStopLossPct = numberInRange("MIN_STOP_LOSS_PCT", 1.5, 0.25, 10);
+  const minTakeProfitPct = numberInRange("MIN_TAKE_PROFIT_PCT", 1.5, 0.25, 20);
+  const maxTakeProfitPct = numberInRange("MAX_TAKE_PROFIT_PCT", 4, 0.5, 30);
+  if (minStopLossPct > stopLossPct) {
+    throw new Error("MIN_STOP_LOSS_PCT cannot exceed STOP_LOSS_PCT");
+  }
+  if (minTakeProfitPct > maxTakeProfitPct) {
+    throw new Error("MIN_TAKE_PROFIT_PCT cannot exceed MAX_TAKE_PROFIT_PCT");
+  }
+
   return {
     apiBaseUrl,
     apiKey,
@@ -137,18 +153,23 @@ export function loadConfig(options: { requireApiKey?: boolean } = {}): BotConfig
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean),
     startingBalanceUsdl: numberInRange("STARTING_BALANCE_USDL", 100_000, 100, 100_000_000),
-    maxDrawdownPct: numberInRange("MAX_DRAWDOWN_PCT", 8, 0.1, 50),
-    maxGrossExposurePct: numberInRange("MAX_GROSS_EXPOSURE_PCT", 65, 1, 100),
-    maxMarketExposurePct: numberInRange("MAX_MARKET_EXPOSURE_PCT", 15, 1, 50),
+    maxDrawdownPct: numberInRange("MAX_DRAWDOWN_PCT", 6, 0.1, 50),
+    maxGrossExposurePct: numberInRange("MAX_GROSS_EXPOSURE_PCT", 60, 1, 100),
+    maxMarketExposurePct: numberInRange("MAX_MARKET_EXPOSURE_PCT", 12, 1, 50),
     cashReservePct: numberInRange("CASH_RESERVE_PCT", 25, 0, 95),
-    orderNotionalPct: numberInRange("ORDER_NOTIONAL_PCT", 1.25, 0.05, 10),
-    stopLossPct: numberInRange("STOP_LOSS_PCT", 4, 0.5, 30),
-    maxMarketsPerTick: Math.floor(numberInRange("MAX_MARKETS_PER_TICK", 4, 1, 10)),
+    orderNotionalPct: numberInRange("ORDER_NOTIONAL_PCT", 2, 0.05, 10),
+    stopLossPct,
+    minStopLossPct,
+    minTakeProfitPct,
+    maxTakeProfitPct,
+    maxMarketsPerTick: Math.floor(numberInRange("MAX_MARKETS_PER_TICK", 6, 1, 10)),
     maxOrdersPerTick: Math.floor(numberInRange("MAX_ORDERS_PER_TICK", 6, 1, 20)),
     quoteTtlSeconds: Math.floor(numberInRange("QUOTE_TTL_SECONDS", 240, 30, 3600)),
     repriceThresholdBps: numberInRange("REPRICE_THRESHOLD_BPS", 20, 1, 500),
-    minNetEdgeBps: numberInRange("MIN_NET_EDGE_BPS", 12, 0, 500),
-    maxSpreadBps: numberInRange("MAX_SPREAD_BPS", 350, 10, 5000),
+    minNetEdgeBps: numberInRange("MIN_NET_EDGE_BPS", 30, 0, 500),
+    maxSpreadBps: numberInRange("MAX_SPREAD_BPS", 120, 10, 5000),
+    liquidityDepthBps: numberInRange("LIQUIDITY_DEPTH_BPS", 25, 1, 500),
+    maxBookParticipationPct: numberInRange("MAX_BOOK_PARTICIPATION_PCT", 15, 1, 100),
     minOrderNotional: numberInRange("MIN_ORDER_NOTIONAL", 10, 10, 10_000),
     tickSize: numberInRange("TICK_SIZE", 0.01, 0.01, 100),
     botPublicUrl,

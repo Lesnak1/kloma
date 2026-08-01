@@ -102,7 +102,7 @@ async function execute(request: Request): Promise<Response> {
     try {
       const state = await store.loadState();
       const api = new LoafClient({ baseUrl: config.apiBaseUrl, apiKey: config.apiKey });
-      report = await new TradingEngine(api, config, schedulerFor(config), state.calibrations).run();
+      report = await new TradingEngine(api, config, schedulerFor(config), state.calibrations, state.risk).run();
       await store.recordRun(report, state);
     } finally {
       try {

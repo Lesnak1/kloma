@@ -126,7 +126,7 @@ test("scheduler stays enabled when post-round cancellation is incomplete", async
 
 test("dry-run reconciliation keeps one fresh quote and removes its duplicate", async () => {
   const now = Math.floor(Date.now() / 1000);
-  const series = candles(now, 0.0015);
+  const series = candles(now, 0.006);
   const api: LoafApi = {
     async getCompetition() {
       return {
