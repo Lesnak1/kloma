@@ -1,0 +1,33 @@
+name: Loaf trader manual fallback
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: loaf-trader-production
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Invoke protected Vercel tick once
+        env:
+          BOT_URL: ${{ secrets.BOT_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          test -n "$BOT_URL"
+          test -n "$CRON_SECRET"
+          curl --silent --show-error --fail-with-body \
+            --max-time 70 \
+            --retry 2 \
+            --retry-all-errors \
+            --request POST \
+            --header "Authorization: Bearer $CRON_SECRET" \
+            --header "X-Bot-Compact: 1" \
+            --output /dev/null \
+            --write-out "Tick HTTP %{http_code}\n" \
+            "$BOT_URL/api/tick"

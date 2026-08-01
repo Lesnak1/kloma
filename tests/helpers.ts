@@ -1,0 +1,80 @@
+import type { BotConfig } from "@/src/config";
+import type { Candle, MarketDetail, MarketSummary } from "@/src/types";
+
+export function config(overrides: Partial<BotConfig> = {}): BotConfig {
+  return {
+    apiBaseUrl: "https://api.loafmarkets.com/api",
+    apiKey: "a".repeat(64),
+    cronSecret: "s".repeat(32),
+    tradingEnabled: false,
+    allowOutsideCompetition: false,
+    killSwitch: false,
+    targetTokens: [],
+    startingBalanceUsdl: 100_000,
+    maxDrawdownPct: 8,
+    maxGrossExposurePct: 65,
+    maxMarketExposurePct: 15,
+    cashReservePct: 25,
+    orderNotionalPct: 1.25,
+    stopLossPct: 4,
+    maxMarketsPerTick: 4,
+    maxOrdersPerTick: 6,
+    quoteTtlSeconds: 240,
+    repriceThresholdBps: 20,
+    minNetEdgeBps: 12,
+    maxSpreadBps: 350,
+    minOrderNotional: 10,
+    tickSize: 0.01,
+    stateNamespace: "loaf:test",
+    telemetryMaxRuns: 10_000,
+    requireDurableLock: false,
+    ...overrides,
+  };
+}
+
+export function candles(now: number, movePerBar = 0.0008, count = 60): Candle[] {
+  return Array.from({ length: count }, (_, index) => {
+    const close = 100 * (1 + movePerBar) ** index;
+    return {
+      time: now - (count - index) * 300,
+      open: close / (1 + movePerBar),
+      high: close * 1.001,
+      low: close * 0.999,
+      close,
+      volume: 100,
+    };
+  });
+}
+
+export const market: MarketSummary = {
+  propertyId: 1,
+  tokenName: "opera",
+  assetName: "Sydney Opera House",
+  ticker: "OPR",
+  status: "LIVE",
+  marketPrice: 101,
+  dailyReferencePrice: 100,
+  volume24h: 1_000_000,
+  isCompetition: true,
+};
+
+export const detail: MarketDetail = {
+  property: {
+    propertyId: 1,
+    tokenName: "opera",
+    assetName: "Sydney Opera House",
+    ticker: "OPR",
+    status: "LIVE",
+    isHalted: false,
+    isCompetition: true,
+  },
+  orderBook: {
+    propertyId: 1,
+    bids: [{ price: 100, quantity: 20 }],
+    asks: [{ price: 102, quantity: 10 }],
+  },
+  dailyReferencePrice: 100,
+  volume24h: 1_000_000,
+  maxSlippageBps: 500,
+  competitionModeActive: true,
+};
