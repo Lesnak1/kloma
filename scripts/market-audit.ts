@@ -46,6 +46,9 @@ async function main(): Promise<void> {
       dynamicStopLossPct: decision.metrics.dynamicStopLossPct,
       dynamicTakeProfitPct: decision.metrics.dynamicTakeProfitPct,
       liquidityBudget: decision.metrics.liquidityBudget,
+      pointsModeEligible: decision.metrics.pointsModeEligible,
+      pointsRoundTripCostBps: decision.metrics.pointsRoundTripCostBps,
+      pointsOrderNotional: decision.metrics.pointsOrderNotional,
       side: order?.side ?? null,
       orderNotional: order ? order.price * order.quantity : 0,
     };

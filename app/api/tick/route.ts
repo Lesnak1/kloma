@@ -5,6 +5,7 @@ import { LoafClient } from "@/src/loaf-client";
 import { CronJobOrgClient } from "@/src/scheduler";
 import { UpstashStateStore } from "@/src/state-store";
 import type { RunReport } from "@/src/types";
+import { STRATEGY_VERSION } from "@/src/version";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -37,6 +38,7 @@ function responseFor(request: Request, report: RunReport, durableState: boolean)
     return Response.json(
       {
         ok: true,
+        strategyVersion: STRATEGY_VERSION,
         runId: report.runId,
         timestamp: report.timestamp,
         mode: report.mode,

@@ -1,6 +1,15 @@
 # Yarışma implementation ve işletim planı
 
-Amaç, bilinmeyen puan formülü altında ölçülebilir fee-sonrası edge’i korurken haftalık alt %30 eliminasyon riskini azaltmaktır. Ödül veya kâr garantisi verilemez.
+Amaç, Loaf’ın açıkladığı hacim bazlı puanlama altında kontrollü puan üretirken fee-sonrası edge’i ve haftalık alt %30 eliminasyon savunmasını birlikte optimize etmektir. Ödül veya kâr garantisi verilemez.
+
+## Points-v3 çalışma ilkesi
+
+- Her `$1` işlem hacmi puan ürettiği için bot tüm LIVE marketleri tarar ve yayınlanan global volume multiplier eşiklerini takip eder.
+- Points emirleri `%0,5` baz notional, market başına `%3` envanter tavanı ve yakın bid likiditesinin `%15` katılım sınırıyla pasif kalır.
+- Tahmini round-trip maliyeti `POINTS_MAX_ROUND_TRIP_COST_BPS` bütçesini aşarsa veya 5m/15m yapı belirgin bearish ise yeni points alışı açılmaz.
+- Drawdown `%2` olduğunda points girişleri kapanır; normal pozisyon çıkışları ve hard `%6` cancel-all koruması çalışmaya devam eder.
+- Mevcut envanteri azaltan SELL emirleri, yeni BUY emirlerinden önce gönderilir.
+- Leaderboard/multiplier şeması eksikse bonus varsayılmaz; bot `1x` ve `balanced` modda kalır.
 
 ## Faz 0 — Secret ve altyapı
 

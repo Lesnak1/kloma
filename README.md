@@ -22,8 +22,8 @@ Vercel /api/tick
 - `/api/tick` yalnızca `CRON_SECRET` ile çalışır ve scheduler’a küçük bir sağlık cevabı verir.
 - Aynı instance içindeki çakışan istekler tek bir `inFlight` çalışmasını paylaşır.
 - Upstash etkinse tüm Vercel instance’ları `SET NX PX` distributed lock ile tek tick’e indirilir.
-- Son 10.000 rapor saklanır; sinyalin 4–10 dakika sonraki getirisi iki maker ücreti düşülerek ölçülür.
-- Kalibrasyon örneği azsa size otomatik %70’e iner ve edge eşiğine 10 bps eklenir. Kötü fee-sonrası performans size’ı azaltıp eşiği yükseltir; hiçbir zaman hard risk limitini büyütmez.
+- Son 10.000 rapor saklanır; sinyalin 15–45 dakika sonraki getirisi iki maker ücreti düşülerek ölçülür.
+- Kalibrasyon örneği azsa size otomatik %60’a iner ve edge eşiğine 25 bps eklenir. Kötü fee-sonrası performans size’ı azaltıp eşiği yükseltir; hiçbir zaman hard risk limitini büyütmez.
 - Her tur aktif emirlerle uzlaştırılır; stale/değişmiş emir iptal edilmeden yenisi açılmaz.
 - `STOP_AFTER_ROUND_NUMBER` terminal duruma geldiğinde açık emirler önce iptal edilir. İptallerin tamamı doğrulanırsa cron job otomatik kapanır; hata varsa güvenli kontrol devam eder.
 - GitHub Actions yalnızca elle çalıştırılan yedektir. İki scheduler’ı aynı anda kullanmayın.
@@ -135,6 +135,10 @@ npm run replay
 
 ## Strateji ve risk
 
+- Loaf sıralamasının açıkladığı `$ hacim → puan` kuralı için ayrı points modu vardır. Bu mod, kâr stratejisinin edge eşiğini gevşetmek yerine küçük pasif likidite emirleri üretir.
+- Points modu yalnızca tahmini iki-maker round-trip maliyeti bütçe içindeyken, market bearish guard’a takılmadığında, kalibrasyon karantinada olmadığında ve drawdown `%2` altında kaldığında yeni envanter açar.
+- Points envanteri pasif satışla geri döndürülür; satış emirleri yeni alışlardan önce gönderilir. Wash trading ve self-trade kullanılmaz.
+- Global hacim multiplier eşikleri yayınlandığında bot mevcut leaderboard hacminden kazanılmış multiplier’ı ve bir sonraki eşiği çıkarır; bilinmeyen şemada bonus uydurmaz ve `1x` kullanır.
 - Fair value; mid, microprice, book imbalance, EMA momentumu ve sınırlı mean reversion birleşimidir.
 - Yönlü girişlerde 5 dakikalık sinyal, 15 dakikalık trend yönüyle doğrulanır.
 - Maker quote ancak görünen spread maker ücretlerini ve minimum edge’i karşılıyorsa açılır.
@@ -163,6 +167,12 @@ Tam liste [.env.example](./.env.example) içindedir.
 | `MAX_MARKET_EXPOSURE_PCT` | `12` | Tek piyasa tavanı |
 | `CASH_RESERVE_PCT` | `25` | Kullanılmayan nakit tamponu |
 | `ORDER_NOTIONAL_PCT` | `2` | Baz emir büyüklüğü; volatilite/kalibrasyon/likidite ile aşağı ölçeklenir |
+| `POINTS_MODE_ENABLED` | `true` | Hacim-puan odaklı küçük pasif likidite döngülerini açar |
+| `POINTS_ORDER_NOTIONAL_PCT` | `0.5` | Points modu baz emir boyutu |
+| `POINTS_MAX_MARKET_EXPOSURE_PCT` | `3` | Points envanteri için market başına ayrı ve daha düşük tavan |
+| `POINTS_DRAWDOWN_STOP_PCT` | `2` | Bu drawdown seviyesinde yeni points envanteri durur |
+| `POINTS_MAX_ROUND_TRIP_COST_BPS` | `90` | Points döngüsünün ham tahmini maliyet bütçesi; rank modu bunu preserve/balanced/defend için aşağı ölçekler |
+| `MAX_MARKETS_PER_TICK` | `10` | Her heartbeat’te ayrıntılı taranacak LIVE market sayısı |
 | `MIN_STOP_LOSS_PCT` / `STOP_LOSS_PCT` | `1.5` / `4` | Volatiliteye bağlı stop alt/üst sınırı |
 | `MIN_TAKE_PROFIT_PCT` / `MAX_TAKE_PROFIT_PCT` | `1.5` / `4` | Ücret ve volatiliteye bağlı kâr alma bandı |
 | `QUOTE_TTL_SECONDS` | `240` | Emir yenileme yaş sınırı |

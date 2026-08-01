@@ -1,18 +1,18 @@
 # Expert test raporu
 
-Tarih: 1 Ağustos 2026 (Europe/Istanbul)
+Tarih: 2 Ağustos 2026 (Europe/Istanbul)
 
 ## Sonuç
 
-Kod, yerel production build ve gerçek Loaf testnetinin read-only endpointleri için testler geçti. Gerçek emir write testi özellikle yapılmadı; aktif round ve admission olmadığı için bunu yapmak güvenli veya anlamlı değildir.
+Points-v3 kodu, yerel production build ve gerçek Loaf testnetinin read-only endpointleri için testler geçti. Trading gate nonce isteğiyle `HTTP 200` doğrulandı; strateji audit’i emir göndermeden tamamlandı. Henüz uygun sinyal/fill olmadığı için gerçek order yaşam döngüsü doğrulanmadı.
 
 ## Otomatik testler
 
-- 34/34 senaryo geçti.
+- 39/39 senaryo geçti.
 - 2.000 deterministik piyasa kombinasyonu fuzz/invariant testinden geçti.
-- Satır coverage: %90,26.
-- Branch coverage: %75,66.
-- Function coverage: %86,92.
+- Satır coverage: %90,02.
+- Branch coverage: %77,11.
+- Function coverage: %86,67.
 - Coverage kapıları: satır ≥%90, branch ≥%70, function ≥%80.
 
 Doğrulanan başlıca invariantlar:
@@ -36,6 +36,9 @@ Doğrulanan başlıca invariantlar:
 - Eksik distributed state veya leaderboard identity ile live mod fail-closed duruyor.
 - Bearer secret tam eşleşme gerektiriyor; query-string secret kabul edilmiyor.
 - Bozuk Redis state fail-closed hata üretiyor.
+- Global volume multiplier eşikleri mevcut hacme göre seçiliyor; bilinmeyen şema bonus üretmiyor.
+- Points emirleri ayrı notional/market-exposure/drawdown/maliyet bütçelerine uyuyor.
+- Points envanteri pasif satışla geri dönüştürülüyor ve SELL emirleri yeni BUY emirlerinden önce gönderiliyor.
 
 Komut:
 
@@ -71,7 +74,7 @@ npm run contract
 
 Bu script yalnızca GET/read endpointlerini çağırır.
 
-`npm run market:audit` ile aynı 10 market yeni çoklu-zaman-dilimi stratejisi üzerinde ayrıca tarandı; 10/10 market verisi işlendi, çalışma salt-okunur kaldı ve o an ücret-sonrası giriş eşiğini geçen market bulunmadı.
+`npm run market:audit` ile aynı 10 market points-v3 üzerinde ayrıca tarandı; 10/10 market verisi işlendi ve çalışma salt-okunur kaldı. Son audit’te başlangıç kalibrasyonuyla Eiffel, Yongin ve Goldengate küçük pasif points adayı üretti; production kalıcı kalibrasyonunda Eiffel karantinada olduğu için beklenen aktif adaylar Yongin ve Goldengate’tir. Örnek emir notional’leri yaklaşık 280–320 USDL aralığındadır.
 
 ## Production endpoint smoke testi
 
@@ -111,9 +114,9 @@ Vercel Production üzerinde gerçek Upstash kalıcı state ve distributed lock y
 
 Şu maddeler dış sistem durumu/credential gerektirir ve live açılmadan tamamlanmalıdır:
 
-1. Aktif competition round ve gerçek admission.
+1. Competition endpoint’inin aktif round ve gerçek leaderboard verisini yayınlaması.
 2. Leaderboard satırının `LOAF_HANDLE` veya `LOAF_WALLET_ADDRESS` ile eşleşmesi.
-3. Micro-live limit order’ın accepted → active → fill/cancel yaşam döngüsü.
-4. En az 24 saat dry-run telemetrisi ve 20 gerçek fill sonrası fee-sonrası replay.
+3. Points-v3 limit order’ın accepted → active → fill/cancel yaşam döngüsü.
+4. En az 20 gerçek fill sonrası fee-sonrası ve points-per-cost replay.
 
 Bu dört kapı tamamlanmadan yarışma içinde agresif ölçeklemeye geçilmemelidir.

@@ -9,6 +9,7 @@ import {
   explicitMarketMultiplier,
   portfolioDrawdownPct,
   portfolioGrossExposure,
+  volumeMultiplierForStanding,
 } from "@/src/risk";
 import { decideMarket } from "@/src/strategy";
 import type {
@@ -240,6 +241,8 @@ export class TradingEngine {
       handle: this.config.handle,
       walletAddress: this.config.walletAddress,
     });
+    const tiers = standingTiers(leaderboard?.volumeMultiplierTiers, competition.featuredRound?.volumeMultiplierTiers);
+    const volumeMultiplier = volumeMultiplierForStanding(tiers, standing.volume);
 
     if (drawdownPct >= this.config.maxDrawdownPct) {
       if (this.config.tradingEnabled) {
@@ -267,7 +270,12 @@ export class TradingEngine {
           pnl: portfolio.portfolioPnl,
           drawdownPct,
         },
-        leaderboard: standing,
+        leaderboard: {
+          ...standing,
+          volumeMultiplier: volumeMultiplier.currentMultiplier,
+          nextVolumeThreshold: volumeMultiplier.nextThreshold,
+          nextVolumeMultiplier: volumeMultiplier.nextMultiplier,
+        },
         decisions,
         actions,
         warnings,
@@ -276,7 +284,6 @@ export class TradingEngine {
     }
 
     const positions = positionMap(portfolio.positions);
-    const tiers = standingTiers(leaderboard?.volumeMultiplierTiers, competition.featuredRound?.volumeMultiplierTiers);
     const live = marketList.properties.filter((market) => market.status === "LIVE");
     const explicitCompetitionMarkets = activeRound ? live.filter((market) => market.isCompetition === true) : [];
     let eligible = explicitCompetitionMarkets.length > 0 ? explicitCompetitionMarkets : live;
@@ -337,10 +344,14 @@ export class TradingEngine {
           portfolioValue: portfolio.portfolioValue,
           cash: portfolio.cash,
           grossExposure,
+          drawdownPct,
           makerFeeBps: Number(portfolio.applicableFees?.makerFeeBps ?? competition.makerFeeBps ?? 0),
           takerFeeBps: Number(portfolio.applicableFees?.takerFeeBps ?? competition.takerFeeBps ?? 0),
           riskMode: standing.riskMode,
-          multiplier: explicitMarketMultiplier(tiers, snapshot.market),
+          multiplier: Math.max(
+            volumeMultiplier.currentMultiplier,
+            explicitMarketMultiplier(tiers, snapshot.market),
+          ),
           calibration: this.calibrations[snapshot.market.tokenName.toLowerCase()],
         }),
       );
@@ -369,7 +380,12 @@ export class TradingEngine {
         pnl: portfolio.portfolioPnl,
         drawdownPct,
       },
-      leaderboard: standing,
+      leaderboard: {
+        ...standing,
+        volumeMultiplier: volumeMultiplier.currentMultiplier,
+        nextVolumeThreshold: volumeMultiplier.nextThreshold,
+        nextVolumeMultiplier: volumeMultiplier.nextMultiplier,
+      },
       decisions,
       actions,
       warnings,
@@ -383,7 +399,9 @@ export class TradingEngine {
     actions: RunReport["actions"],
     warnings: string[],
   ): Promise<void> {
-    const desired = decisions.flatMap((decision) => decision.desiredOrders);
+    const desired = decisions
+      .flatMap((decision) => decision.desiredOrders)
+      .sort((left, right) => Number(right.side === "SELL") - Number(left.side === "SELL"));
     const nowSeconds = Math.floor(Date.now() / 1000);
     const keep = new Set<number>();
     const coveredKeys = new Set<string>();

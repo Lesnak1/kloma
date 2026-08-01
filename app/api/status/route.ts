@@ -1,6 +1,7 @@
 import { isAuthorized, unauthorizedResponse } from "@/src/auth";
 import { loadConfig } from "@/src/config";
 import { LoafClient } from "@/src/loaf-client";
+import { STRATEGY_VERSION } from "@/src/version";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -31,6 +32,7 @@ export async function GET(request: Request): Promise<Response> {
       {
         ok: true,
         timestamp: new Date().toISOString(),
+        strategyVersion: STRATEGY_VERSION,
         mode: config.killSwitch ? "kill-switch" : config.tradingEnabled ? "live" : "dry-run",
         allowOutsideCompetition: config.allowOutsideCompetition,
         operations: {
@@ -38,6 +40,19 @@ export async function GET(request: Request): Promise<Response> {
           durableLockRequired: config.requireDurableLock,
           schedulerConfigured: Boolean(config.cronJobApiKey && config.cronJobJobId),
           stopAfterRoundNumber: config.stopAfterRoundNumber ?? null,
+        },
+        strategy: {
+          maxMarketsPerTick: config.maxMarketsPerTick,
+          maxOrdersPerTick: config.maxOrdersPerTick,
+          pointsModeEnabled: config.pointsModeEnabled,
+          pointsOrderNotionalPct: config.pointsOrderNotionalPct,
+          pointsMaxMarketExposurePct: config.pointsMaxMarketExposurePct,
+          pointsDrawdownStopPct: config.pointsDrawdownStopPct,
+          pointsMaxRoundTripCostBps: config.pointsMaxRoundTripCostBps,
+          maxDrawdownPct: config.maxDrawdownPct,
+          maxGrossExposurePct: config.maxGrossExposurePct,
+          maxMarketExposurePct: config.maxMarketExposurePct,
+          cashReservePct: config.cashReservePct,
         },
         competition,
         queuePosition,

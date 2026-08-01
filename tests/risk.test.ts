@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { assessStanding, explicitMarketMultiplier, portfolioDrawdownPct } from "@/src/risk";
+import {
+  assessStanding,
+  explicitMarketMultiplier,
+  portfolioDrawdownPct,
+  volumeMultiplierForStanding,
+} from "@/src/risk";
 import { market } from "./helpers";
 
 test("bottom thirty standing selects bounded attack mode", () => {
@@ -24,9 +29,31 @@ test("bottom thirty standing selects bounded attack mode", () => {
 test("unknown multiplier formats never invent a bonus", () => {
   assert.equal(explicitMarketMultiplier([{ label: "new", boost: 5 }], market), 1);
   assert.equal(explicitMarketMultiplier([{ tokenName: "opera", multiplier: 3 }], market), 3);
+  assert.equal(explicitMarketMultiplier([{ tokenName: "opera", multiplier: 100 }], market), 1);
 });
 
 test("drawdown is measured from round starting capital", () => {
   assert.equal(portfolioDrawdownPct(92_000, 100_000), 8);
   assert.equal(portfolioDrawdownPct(105_000, 100_000), 0);
+});
+
+test("global volume tiers select the earned multiplier and expose the next target", () => {
+  const tiers = [
+    { minVolume: 0, multiplier: 1 },
+    { minVolume: 50_000, multiplier: 1.5 },
+    { minVolume: 250_000, multiplier: 2 },
+  ];
+  assert.deepEqual(volumeMultiplierForStanding(tiers, 80_000), {
+    currentMultiplier: 1.5,
+    nextThreshold: 250_000,
+    nextMultiplier: 2,
+  });
+});
+
+test("unknown volume tier shapes fail closed at a 1x multiplier", () => {
+  assert.deepEqual(volumeMultiplierForStanding([{ boost: 10, target: "soon" }], 1_000_000), {
+    currentMultiplier: 1,
+    nextThreshold: null,
+    nextMultiplier: null,
+  });
 });

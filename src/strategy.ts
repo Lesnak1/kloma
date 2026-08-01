@@ -34,6 +34,7 @@ export interface StrategyInput {
   portfolioValue: number;
   cash: number;
   grossExposure: number;
+  drawdownPct?: number;
   makerFeeBps: number;
   takerFeeBps: number;
   riskMode: RiskMode;
@@ -151,6 +152,42 @@ export function decideMarket(input: StrategyInput): MarketDecision {
     .reduce((sum, level) => sum + level.price * level.quantity, 0);
   const liquidityBudget = exitDepthNotional * (config.maxBookParticipationPct / 100);
   const buyNotional = Math.min(baseNotional, cashBudget, grossBudget, marketBudget, liquidityBudget);
+  const pointsInventoryCap = input.portfolioValue * (config.pointsMaxMarketExposurePct / 100);
+  const pointsInventoryBudget = Math.max(0, pointsInventoryCap - positionNotional);
+  const pointsCostScale = input.riskMode === "preserve"
+    ? 0.6
+    : input.riskMode === "balanced"
+      ? 0.8
+      : input.riskMode === "defend"
+        ? 0.95
+        : 1;
+  const pointsCostBudgetBps = config.pointsMaxRoundTripCostBps * pointsCostScale;
+  const alphaCostCreditBps = buyTrendConfirmed ? Math.min(35, Math.max(0, signalBps) * 0.25) : 0;
+  const pointsRoundTripCostBps = Math.max(0, input.makerFeeBps * 2 - spreadBps - alphaCostCreditBps);
+  const pointsBearishGuard =
+    signalBps <= -Math.max(35, volatilityBps * 0.25) ||
+    higherTimeframeMomentum <= -Math.max(30, volatilityBps * 0.2);
+  const pointsBaseNotional =
+    input.portfolioValue *
+    (config.pointsOrderNotionalPct / 100) *
+    modeSizeMultiplier(input.riskMode) *
+    volatilityScale *
+    multiplierScale *
+    calibration.sizeScale;
+  const pointsOrderNotional = Math.min(
+    pointsBaseNotional,
+    cashBudget,
+    grossBudget,
+    pointsInventoryBudget,
+    liquidityBudget,
+  );
+  const pointsModeEligible =
+    config.pointsModeEnabled &&
+    Number(input.drawdownPct ?? 0) < config.pointsDrawdownStopPct &&
+    !calibrationQuarantined &&
+    !pointsBearishGuard &&
+    pointsRoundTripCostBps <= pointsCostBudgetBps &&
+    pointsOrderNotional >= config.minOrderNotional;
   const desiredOrders: DesiredOrder[] = [];
   const positionPnlPct = Number(position?.propertyPnlPercent ?? 0);
   const dynamicStopLossPct = clamp(
@@ -166,12 +203,22 @@ export function decideMarket(input: StrategyInput): MarketDecision {
   const stopLoss = positionQuantity > 0 && positionPnlPct <= -dynamicStopLossPct;
   const takeProfit = positionQuantity > 0 && positionPnlPct >= dynamicTakeProfitPct;
 
-  if (!stopLoss && !takeProfit && !calibrationQuarantined && (marketMakingEdge || buyAlpha) && buyNotional >= config.minOrderNotional) {
+  const regularBuyEntry = marketMakingEdge || buyAlpha;
+  const selectedBuyNotional = regularBuyEntry ? buyNotional : pointsOrderNotional;
+  if (
+    !stopLoss &&
+    !takeProfit &&
+    !calibrationQuarantined &&
+    (regularBuyEntry || pointsModeEligible) &&
+    selectedBuyNotional >= config.minOrderNotional
+  ) {
     const improvedBid = Math.min(bestAsk.price - config.tickSize, bestBid.price + config.tickSize);
     const passiveTarget = reservationPrice * (1 - Math.max(config.minNetEdgeBps, volatilityBps * 0.12) / 10_000);
-    const rawBid = buyAlpha ? improvedBid : Math.min(improvedBid, Math.max(bestBid.price, passiveTarget));
+    const rawBid = buyAlpha || pointsModeEligible
+      ? improvedBid
+      : Math.min(improvedBid, Math.max(bestBid.price, passiveTarget));
     const price = roundToTick(Math.min(rawBid, bestAsk.price - config.tickSize), config.tickSize, "down");
-    const quantity = quantityForNotional(buyNotional, price, config.minOrderNotional);
+    const quantity = quantityForNotional(selectedBuyNotional, price, config.minOrderNotional);
     if (price > 0 && price < bestAsk.price && quantity > 0) {
       desiredOrders.push({
         tokenName: market.tokenName,
@@ -181,20 +228,31 @@ export function decideMarket(input: StrategyInput): MarketDecision {
         quantity,
         type: "LIMIT",
         timeInForce: "GTC",
-        rationale: [marketMakingEdge ? "fee-adjusted-spread" : "momentum-alpha", trendRegime ? "trend" : "range"],
+        rationale: [
+          marketMakingEdge ? "fee-adjusted-spread" : buyAlpha ? "momentum-alpha" : "points-passive-liquidity",
+          trendRegime ? "trend" : "range",
+        ],
       });
     }
   }
 
-  if (positionQuantity > 0 && (stopLoss || takeProfit || marketMakingEdge || sellAlpha)) {
+  const pointsInventoryExit = config.pointsModeEnabled && positionQuantity > 0;
+  const pointsOnlyExit = pointsInventoryExit && !stopLoss && !takeProfit && !marketMakingEdge && !sellAlpha;
+  if (positionQuantity > 0 && (stopLoss || takeProfit || marketMakingEdge || sellAlpha || pointsInventoryExit)) {
     const sellNotional = stopLoss || takeProfit
       ? positionQuantity * (stopLoss ? bestBid.price : bestAsk.price)
-      : Math.min(baseNotional, positionQuantity * bestAsk.price);
+      : Math.min(pointsOnlyExit ? pointsBaseNotional : baseNotional, positionQuantity * bestAsk.price);
     const improvedAsk = Math.max(bestBid.price + config.tickSize, bestAsk.price - config.tickSize);
     const passiveTarget = reservationPrice * (1 + Math.max(config.minNetEdgeBps, volatilityBps * 0.12) / 10_000);
     let rawAsk = Math.max(improvedAsk, Math.min(bestAsk.price, passiveTarget));
     if (stopLoss) rawAsk = bestBid.price;
     else if (takeProfit || sellAlpha) rawAsk = improvedAsk;
+    else if (pointsOnlyExit) {
+      const entryPrice = Number(position?.averageEntryPrice ?? 0);
+      const minimumExitEdgeBps = Math.max(0, input.makerFeeBps * 2 - pointsCostBudgetBps);
+      const pointsExitFloor = entryPrice > 0 ? entryPrice * (1 + minimumExitEdgeBps / 10_000) : improvedAsk;
+      rawAsk = Math.max(improvedAsk, pointsExitFloor);
+    }
     const price = roundToTick(Math.max(rawAsk, stopLoss ? bestBid.price : bestBid.price + config.tickSize), config.tickSize, "up");
     const requestedQuantity = stopLoss || takeProfit
       ? positionQuantity
@@ -216,7 +274,9 @@ export function decideMarket(input: StrategyInput): MarketDecision {
               ? "volatility-take-profit"
               : marketMakingEdge
                 ? "fee-adjusted-spread"
-                : "negative-alpha",
+                : sellAlpha
+                  ? "negative-alpha"
+                  : "points-inventory-recycle",
         ],
       });
     }
@@ -230,7 +290,12 @@ export function decideMarket(input: StrategyInput): MarketDecision {
 
   let reason = "no-fee-adjusted-edge";
   if (desiredOrders.length > 0) {
-    reason = marketMakingEdge ? "net-positive-passive-edge" : "fee-adjusted-directional-edge";
+    const pointsOrder = desiredOrders.some((order) => order.rationale.some((item) => item.startsWith("points-")));
+    reason = marketMakingEdge
+      ? "net-positive-passive-edge"
+      : pointsOrder
+        ? "points-aware-passive-liquidity"
+        : "fee-adjusted-directional-edge";
   } else if (calibrationQuarantined) {
     reason = "calibration-quarantine";
   } else if ((buySignalPresent && !buyTrendConfirmed) || (sellSignalPresent && !sellTrendConfirmed)) {
@@ -265,6 +330,10 @@ export function decideMarket(input: StrategyInput): MarketDecision {
       dynamicTakeProfitPct,
       exitDepthNotional,
       liquidityBudget,
+      pointsModeEligible,
+      pointsRoundTripCostBps,
+      pointsOrderNotional,
+      pointsInventoryCap,
     },
     desiredOrders,
   };

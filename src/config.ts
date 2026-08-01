@@ -14,6 +14,11 @@ export interface BotConfig {
   maxMarketExposurePct: number;
   cashReservePct: number;
   orderNotionalPct: number;
+  pointsModeEnabled: boolean;
+  pointsOrderNotionalPct: number;
+  pointsMaxMarketExposurePct: number;
+  pointsDrawdownStopPct: number;
+  pointsMaxRoundTripCostBps: number;
   stopLossPct: number;
   minStopLossPct: number;
   minTakeProfitPct: number;
@@ -132,11 +137,21 @@ export function loadConfig(options: { requireApiKey?: boolean } = {}): BotConfig
   const minStopLossPct = numberInRange("MIN_STOP_LOSS_PCT", 1.5, 0.25, 10);
   const minTakeProfitPct = numberInRange("MIN_TAKE_PROFIT_PCT", 1.5, 0.25, 20);
   const maxTakeProfitPct = numberInRange("MAX_TAKE_PROFIT_PCT", 4, 0.5, 30);
+  const maxDrawdownPct = numberInRange("MAX_DRAWDOWN_PCT", 6, 0.1, 50);
+  const maxMarketExposurePct = numberInRange("MAX_MARKET_EXPOSURE_PCT", 12, 1, 50);
+  const pointsMaxMarketExposurePct = numberInRange("POINTS_MAX_MARKET_EXPOSURE_PCT", 3, 0.25, 20);
+  const pointsDrawdownStopPct = numberInRange("POINTS_DRAWDOWN_STOP_PCT", 2, 0.1, 20);
   if (minStopLossPct > stopLossPct) {
     throw new Error("MIN_STOP_LOSS_PCT cannot exceed STOP_LOSS_PCT");
   }
   if (minTakeProfitPct > maxTakeProfitPct) {
     throw new Error("MIN_TAKE_PROFIT_PCT cannot exceed MAX_TAKE_PROFIT_PCT");
+  }
+  if (pointsMaxMarketExposurePct > maxMarketExposurePct) {
+    throw new Error("POINTS_MAX_MARKET_EXPOSURE_PCT cannot exceed MAX_MARKET_EXPOSURE_PCT");
+  }
+  if (pointsDrawdownStopPct > maxDrawdownPct) {
+    throw new Error("POINTS_DRAWDOWN_STOP_PCT cannot exceed MAX_DRAWDOWN_PCT");
   }
 
   return {
@@ -153,16 +168,21 @@ export function loadConfig(options: { requireApiKey?: boolean } = {}): BotConfig
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean),
     startingBalanceUsdl: numberInRange("STARTING_BALANCE_USDL", 100_000, 100, 100_000_000),
-    maxDrawdownPct: numberInRange("MAX_DRAWDOWN_PCT", 6, 0.1, 50),
+    maxDrawdownPct,
     maxGrossExposurePct: numberInRange("MAX_GROSS_EXPOSURE_PCT", 60, 1, 100),
-    maxMarketExposurePct: numberInRange("MAX_MARKET_EXPOSURE_PCT", 12, 1, 50),
+    maxMarketExposurePct,
     cashReservePct: numberInRange("CASH_RESERVE_PCT", 25, 0, 95),
     orderNotionalPct: numberInRange("ORDER_NOTIONAL_PCT", 2, 0.05, 10),
+    pointsModeEnabled: bool("POINTS_MODE_ENABLED", true),
+    pointsOrderNotionalPct: numberInRange("POINTS_ORDER_NOTIONAL_PCT", 0.5, 0.05, 5),
+    pointsMaxMarketExposurePct,
+    pointsDrawdownStopPct,
+    pointsMaxRoundTripCostBps: numberInRange("POINTS_MAX_ROUND_TRIP_COST_BPS", 90, 0, 200),
     stopLossPct,
     minStopLossPct,
     minTakeProfitPct,
     maxTakeProfitPct,
-    maxMarketsPerTick: Math.floor(numberInRange("MAX_MARKETS_PER_TICK", 6, 1, 10)),
+    maxMarketsPerTick: Math.floor(numberInRange("MAX_MARKETS_PER_TICK", 10, 1, 10)),
     maxOrdersPerTick: Math.floor(numberInRange("MAX_ORDERS_PER_TICK", 6, 1, 20)),
     quoteTtlSeconds: Math.floor(numberInRange("QUOTE_TTL_SECONDS", 240, 30, 3600)),
     repriceThresholdBps: numberInRange("REPRICE_THRESHOLD_BPS", 20, 1, 500),

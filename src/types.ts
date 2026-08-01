@@ -240,6 +240,10 @@ export interface MarketDecision {
     dynamicTakeProfitPct?: number;
     exitDepthNotional?: number;
     liquidityBudget?: number;
+    pointsModeEligible?: boolean;
+    pointsRoundTripCostBps?: number;
+    pointsOrderNotional?: number;
+    pointsInventoryCap?: number;
   };
   desiredOrders: DesiredOrder[];
 }
@@ -271,6 +275,12 @@ export interface RunReport {
     percentile: number | null;
     bottomThirtyCutoffRank: number | null;
     riskMode: RiskMode;
+    points: number | null;
+    volume: number | null;
+    pnl: number | null;
+    volumeMultiplier: number;
+    nextVolumeThreshold: number | null;
+    nextVolumeMultiplier: number | null;
   };
   decisions: MarketDecision[];
   actions: Array<{

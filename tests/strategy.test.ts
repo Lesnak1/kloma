@@ -138,3 +138,94 @@ test("large one-bar jump triggers circuit breaker", () => {
   assert.equal(decision.state, "halt");
   assert.equal(decision.desiredOrders.length, 0);
 });
+
+test("points mode provides a small passive quote within its explicit cost budget", () => {
+  const now = 1_800_000_000;
+  const decision = decideMarket({
+    config: config({
+      minNetEdgeBps: 200,
+      pointsModeEnabled: true,
+      pointsMaxRoundTripCostBps: 100,
+    }),
+    market,
+    detail,
+    candles: candles(now, 0.0001),
+    portfolioValue: 100_000,
+    cash: 100_000,
+    grossExposure: 0,
+    drawdownPct: 0,
+    makerFeeBps: 40,
+    takerFeeBps: 70,
+    riskMode: "balanced",
+    multiplier: 1,
+    nowSeconds: now,
+  });
+  const buy = decision.desiredOrders.find((order) => order.side === "BUY");
+  assert.ok(buy);
+  assert.ok(buy.rationale.includes("points-passive-liquidity"));
+  assert.equal(decision.reason, "points-aware-passive-liquidity");
+  assert.ok(buy.price < 101);
+  assert.ok(buy.price * buy.quantity <= 600, "points quote stays near its 0.5% sizing budget");
+});
+
+test("points entries stop before the portfolio-wide drawdown breaker", () => {
+  const now = 1_800_000_000;
+  const decision = decideMarket({
+    config: config({
+      minNetEdgeBps: 200,
+      pointsModeEnabled: true,
+      pointsMaxRoundTripCostBps: 100,
+      pointsDrawdownStopPct: 2,
+    }),
+    market,
+    detail,
+    candles: candles(now, 0.0001),
+    portfolioValue: 98_000,
+    cash: 98_000,
+    grossExposure: 0,
+    drawdownPct: 2,
+    makerFeeBps: 40,
+    takerFeeBps: 70,
+    riskMode: "balanced",
+    multiplier: 1,
+    nowSeconds: now,
+  });
+  assert.equal(decision.desiredOrders.some((order) => order.side === "BUY"), false);
+  assert.equal(decision.metrics.pointsModeEligible, false);
+});
+
+test("points inventory is recycled with a passive fee-budgeted sell", () => {
+  const now = 1_800_000_000;
+  const decision = decideMarket({
+    config: config({
+      minNetEdgeBps: 200,
+      pointsModeEnabled: true,
+      pointsMaxRoundTripCostBps: 60,
+    }),
+    market,
+    detail,
+    candles: candles(now, 0.0001),
+    position: {
+      propertyId: 1,
+      tokenName: "opera",
+      quantity: 4,
+      averageEntryPrice: 100,
+      marketPrice: 100.5,
+      propertyPnlPercent: 0.5,
+    },
+    portfolioValue: 100_000,
+    cash: 90_000,
+    grossExposure: 402,
+    drawdownPct: 0,
+    makerFeeBps: 40,
+    takerFeeBps: 70,
+    riskMode: "balanced",
+    multiplier: 1,
+    nowSeconds: now,
+  });
+  const sell = decision.desiredOrders.find((order) => order.side === "SELL");
+  assert.ok(sell);
+  assert.ok(sell.rationale.includes("points-inventory-recycle"));
+  assert.equal(sell.timeInForce, "GTC");
+  assert.ok(sell.price > 100);
+});
