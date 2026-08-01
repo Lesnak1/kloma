@@ -9,6 +9,33 @@ export interface StrategyCalibration {
   thresholdAddBps: number;
 }
 
+export function initialStrategyCalibration(): StrategyCalibration {
+  return {
+    samples: 0,
+    emaNetEdgeBps: 0,
+    directionalAccuracy: 0.5,
+    sizeScale: 0.6,
+    thresholdAddBps: 25,
+  };
+}
+
+export function isCalibrationQuarantined(calibration: StrategyCalibration): boolean {
+  if (calibration.samples <= 0) return false;
+  if (
+    calibration.samples < 4 &&
+    calibration.emaNetEdgeBps <= -80 &&
+    calibration.directionalAccuracy <= 0.25
+  ) {
+    return true;
+  }
+  if (calibration.samples < 10) {
+    return calibration.samples >= 4 && (
+      calibration.emaNetEdgeBps <= -35 || calibration.directionalAccuracy < 0.38
+    );
+  }
+  return calibration.emaNetEdgeBps <= -15 || calibration.directionalAccuracy < 0.45;
+}
+
 interface SignalObservation {
   timestamp: number;
   mid: number;
@@ -20,6 +47,12 @@ export interface DurableBotState {
   updatedAt: string;
   observations: Record<string, SignalObservation>;
   calibrations: Record<string, StrategyCalibration>;
+  risk: PortfolioRiskState;
+}
+
+export interface PortfolioRiskState {
+  roundNumber: number | null;
+  peakPortfolioValue: number;
 }
 
 export function emptyDurableState(): DurableBotState {
@@ -28,6 +61,7 @@ export function emptyDurableState(): DurableBotState {
     updatedAt: new Date(0).toISOString(),
     observations: {},
     calibrations: {},
+    risk: { roundNumber: null, peakPortfolioValue: 0 },
   };
 }
 
@@ -46,6 +80,12 @@ export function normalizeDurableState(value: unknown): DurableBotState {
       candidate.observations && typeof candidate.observations === "object" ? candidate.observations : {},
     calibrations:
       candidate.calibrations && typeof candidate.calibrations === "object" ? candidate.calibrations : {},
+    risk: {
+      roundNumber: Number.isInteger(candidate.risk?.roundNumber)
+        ? Number(candidate.risk?.roundNumber)
+        : null,
+      peakPortfolioValue: Math.max(0, finite(candidate.risk?.peakPortfolioValue, 0)),
+    },
   };
 }
 
@@ -62,14 +102,21 @@ function updatedCalibration(
   const emaNetEdgeBps = previousEdge * (1 - alpha) + netEdgeBps * alpha;
   const directionalAccuracy = previousAccuracy * (1 - alpha) + (signedGrossEdgeBps > 0 ? 1 : 0) * alpha;
 
-  if (samples < 10) {
-    return { samples, emaNetEdgeBps, directionalAccuracy, sizeScale: 0.7, thresholdAddBps: 10 };
+  if (samples < 8) {
+    const severeLoss = emaNetEdgeBps <= -80 || directionalAccuracy <= 0.25;
+    return {
+      samples,
+      emaNetEdgeBps,
+      directionalAccuracy,
+      sizeScale: severeLoss ? 0.45 : 0.6,
+      thresholdAddBps: severeLoss ? 100 : 25,
+    };
   }
-  const qualityBoost = Math.max(0, emaNetEdgeBps) / 80 + Math.max(0, directionalAccuracy - 0.5) * 0.8;
-  const sizeScale = clamp(0.55 + qualityBoost, 0.5, 1.15);
+  const qualityBoost = Math.max(0, emaNetEdgeBps) / 100 + Math.max(0, directionalAccuracy - 0.5) * 0.9;
+  const sizeScale = clamp(0.5 + qualityBoost, 0.4, 1.2);
   const edgePenalty = Math.max(0, -emaNetEdgeBps);
   const accuracyPenalty = Math.max(0, 0.48 - directionalAccuracy) * 100;
-  const thresholdAddBps = clamp(edgePenalty + accuracyPenalty, 0, 60);
+  const thresholdAddBps = clamp(edgePenalty + accuracyPenalty, 0, 120);
   return { samples, emaNetEdgeBps, directionalAccuracy, sizeScale, thresholdAddBps };
 }
 
@@ -79,6 +126,13 @@ export function updateDurableState(state: DurableBotState, report: RunReport): D
   if (!Number.isFinite(now)) return next;
   const timestamp = Math.floor(now / 1000);
   const makerFeeBps = Math.max(0, finite(report.fees?.makerFeeBps, 0));
+  const portfolioValue = Math.max(0, finite(report.portfolio?.value, 0));
+  const roundNumber = report.competition.roundNumber;
+  if (portfolioValue > 0 && roundNumber !== null) {
+    next.risk = next.risk.roundNumber === roundNumber
+      ? { roundNumber, peakPortfolioValue: Math.max(next.risk.peakPortfolioValue, portfolioValue) }
+      : { roundNumber, peakPortfolioValue: portfolioValue };
+  }
 
   for (const decision of report.decisions) {
     const token = decision.tokenName.toLowerCase();
@@ -89,7 +143,7 @@ export function updateDurableState(state: DurableBotState, report: RunReport): D
     const previous = next.observations[token];
     if (previous) {
       const elapsed = timestamp - finite(previous.timestamp, 0);
-      if (elapsed >= 4 * 60 && elapsed <= 10 * 60 && Math.abs(previous.signalBps) >= 1) {
+      if (elapsed >= 15 * 60 && elapsed <= 45 * 60 && Math.abs(previous.signalBps) >= 1) {
         const forwardBps = (mid / previous.mid - 1) * 10_000;
         const signedGrossEdgeBps = Math.sign(previous.signalBps) * forwardBps;
         next.calibrations[token] = updatedCalibration(
@@ -98,7 +152,7 @@ export function updateDurableState(state: DurableBotState, report: RunReport): D
           makerFeeBps,
         );
         next.observations[token] = { timestamp, mid, signalBps };
-      } else if (elapsed > 10 * 60) {
+      } else if (elapsed > 45 * 60) {
         next.observations[token] = { timestamp, mid, signalBps };
       }
       continue;

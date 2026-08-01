@@ -25,6 +25,28 @@ export function ema(values: number[], period: number): number | null {
   return result;
 }
 
+export function aggregateCandles(candles: Candle[], bucketSeconds = 15 * 60): Candle[] {
+  if (!Number.isFinite(bucketSeconds) || bucketSeconds <= 0) return [];
+  const grouped = new Map<number, Candle>();
+  const ordered = candles
+    .filter((candle) => candle.time > 0 && candle.close > 0)
+    .sort((left, right) => left.time - right.time);
+
+  for (const candle of ordered) {
+    const bucket = Math.floor(candle.time / bucketSeconds) * bucketSeconds;
+    const existing = grouped.get(bucket);
+    if (!existing) {
+      grouped.set(bucket, { ...candle, time: bucket });
+      continue;
+    }
+    existing.high = Math.max(existing.high, candle.high);
+    existing.low = Math.min(existing.low, candle.low);
+    existing.close = candle.close;
+    existing.volume += candle.volume;
+  }
+  return [...grouped.values()].sort((left, right) => left.time - right.time);
+}
+
 export function realizedVolatilityBps(candles: Candle[], window = 24): number {
   const closes = candles.slice(-(window + 1)).map((candle) => candle.close).filter((value) => value > 0);
   if (closes.length < 3) return 0;

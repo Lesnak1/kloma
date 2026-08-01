@@ -225,6 +225,7 @@ export interface MarketDecision {
     spreadBps?: number;
     volatilityBps?: number;
     momentumBps?: number;
+    higherTimeframeMomentumBps?: number;
     imbalance?: number;
     fairPrice?: number;
     reservationPrice?: number;
@@ -234,6 +235,11 @@ export interface MarketDecision {
     calibrationAccuracy?: number;
     calibrationSizeScale?: number;
     calibrationThresholdAddBps?: number;
+    calibrationQuarantined?: boolean;
+    dynamicStopLossPct?: number;
+    dynamicTakeProfitPct?: number;
+    exitDepthNotional?: number;
+    liquidityBudget?: number;
   };
   desiredOrders: DesiredOrder[];
 }

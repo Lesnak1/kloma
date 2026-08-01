@@ -8,11 +8,11 @@ Kod, yerel production build ve gerçek Loaf testnetinin read-only endpointleri i
 
 ## Otomatik testler
 
-- 30/30 senaryo geçti.
+- 34/34 senaryo geçti.
 - 2.000 deterministik piyasa kombinasyonu fuzz/invariant testinden geçti.
-- Satır coverage: %90,11.
-- Branch coverage: %73,26.
-- Function coverage: %86,35.
+- Satır coverage: %90,26.
+- Branch coverage: %75,66.
+- Function coverage: %86,92.
 - Coverage kapıları: satır ≥%90, branch ≥%70, function ≥%80.
 
 Doğrulanan başlıca invariantlar:
@@ -24,6 +24,11 @@ Doğrulanan başlıca invariantlar:
 - Aynı kararda bid ve ask self-trade yaratmıyor.
 - Nakit, gross exposure ve market exposure bütçeleri aşılmıyor.
 - Kalıcı kaybeden sinyal size’ı düşürüp edge eşiğini yükseltiyor.
+- Aşırı negatif market kalibrasyonu yeni envanteri karantinaya alırken recovery ölçümünü sürdürüyor.
+- Beş dakikalık mumlar deterministik 15 dakikalık OHLCV barlarına çevriliyor.
+- Dinamik take-profit tam pozisyonu pasif ve non-crossing emirle kapatıyor.
+- Emir notional’i yakın bid likiditesinin belirlenen katılım yüzdesini aşmıyor.
+- Drawdown breaker yalnızca round başlangıcını değil kalıcı round peak değerini de koruyor.
 - Admission yoksa portfolio/market/order write katmanına geçilmiyor.
 - Drawdown ve kill switch market değerlendirmesinden önce cancel-all yoluna giriyor.
 - Read-only 429/503 çağrıları sınırlı retry alırken nonce/order/cancel write çağrıları retry almıyor.
@@ -51,7 +56,7 @@ Son doğrulanan durum:
 | Pozisyon | 0 |
 | Açık emir | 0 |
 | Aktif round | Yok |
-| Queue | 5.845 / 5.982 |
+| Queue | 5.862 / 6.588 |
 | Canlı market | 10/10 doğrulandı |
 | İki taraflı order book | 10/10 |
 | Candle | 1.200/1.200 doğrulandı |
@@ -65,6 +70,8 @@ npm run contract
 ```
 
 Bu script yalnızca GET/read endpointlerini çağırır.
+
+`npm run market:audit` ile aynı 10 market yeni çoklu-zaman-dilimi stratejisi üzerinde ayrıca tarandı; 10/10 market verisi işlendi, çalışma salt-okunur kaldı ve o an ücret-sonrası giriş eşiğini geçen market bulunmadı.
 
 ## Production endpoint smoke testi
 
@@ -90,7 +97,7 @@ Production `/api/tick` endpointine aynı anda 25 yetkili dry-run istek gönderil
 - 25 cevapta tek `runId`: instance-içi `inFlight` deduplication doğrulandı.
 - Trade write yapılmadı.
 
-Vercel instance’ları arası deduplication, deploy sonrası gerçek Upstash credential’larıyla ayrıca doğrulanmalıdır.
+Vercel Production üzerinde gerçek Upstash kalıcı state ve distributed lock yapılandırması ayrıca doğrulandı; cron tick kayıtları Redis telemetrisinde görünmektedir.
 
 ## Build ve güvenlik
 
@@ -106,9 +113,7 @@ Vercel instance’ları arası deduplication, deploy sonrası gerçek Upstash cr
 
 1. Aktif competition round ve gerçek admission.
 2. Leaderboard satırının `LOAF_HANDLE` veya `LOAF_WALLET_ADDRESS` ile eşleşmesi.
-3. Vercel Production + gerçek Upstash distributed lock entegrasyonu.
-4. cron-job.org job’ın dakikalık execution history’si.
-5. Micro-live limit order’ın accepted → active → fill/cancel yaşam döngüsü.
-6. En az 24 saat dry-run telemetrisi ve 20 gerçek fill sonrası fee-sonrası replay.
+3. Micro-live limit order’ın accepted → active → fill/cancel yaşam döngüsü.
+4. En az 24 saat dry-run telemetrisi ve 20 gerçek fill sonrası fee-sonrası replay.
 
-Bu altı kapı tamamlanmadan `TRADING_ENABLED=true` yapılmamalıdır.
+Bu dört kapı tamamlanmadan yarışma içinde agresif ölçeklemeye geçilmemelidir.

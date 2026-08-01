@@ -136,9 +136,12 @@ npm run replay
 ## Strateji ve risk
 
 - Fair value; mid, microprice, book imbalance, EMA momentumu ve sınırlı mean reversion birleşimidir.
+- Yönlü girişlerde 5 dakikalık sinyal, 15 dakikalık trend yönüyle doğrulanır.
 - Maker quote ancak görünen spread maker ücretlerini ve minimum edge’i karşılıyorsa açılır.
 - Yönlü quote giriş ve çıkış için iki maker ücreti + minimum edge + adaptif güvenlik payını karşılamalıdır.
-- Sizing volatiliteyle ters, yalnızca açıkça yayınlanan multiplier ile doğru orantılıdır.
+- Sizing volatiliteyle ters, yalnızca açıkça yayınlanan multiplier ile doğru orantılı ve yakın bid likiditesinin en fazla %15’iyle sınırlıdır.
+- Kalibrasyon 15–45 dakikalık ücret-sonrası sonucu öğrenir; ciddi negatif edge üreten market yeni envantere karantinaya alınır fakat gözlemlenmeye devam eder.
+- Stop-loss ve take-profit 5 dakikalık volatiliteye göre dinamikleşir; tur içi portföy zirvesinden drawdown da kalıcı state ile korunur.
 - Leaderboard’da ilk %35 `preserve`, orta bölüm `balanced/defend`, alt %30 `attack` kullanır; hard exposure/drawdown limitleri hiçbir modda aşılmaz.
 - Stop-loss, stale candle, bozuk/tek taraflı book, anormal tek-bar hareket, aşırı spread ve drawdown devre kesicileri vardır.
 - Wash trading, self-trade veya skor manipülasyonu uygulanmaz.
@@ -155,13 +158,17 @@ Tam liste [.env.example](./.env.example) içindedir.
 | `STOP_AFTER_ROUND_NUMBER` | boş | Terminal round sonrası cleanup + scheduler stop |
 | `REQUIRE_DURABLE_LOCK` | `false` | Live için `true`; Redis yoksa tick’i fail-closed durdurur |
 | `TELEMETRY_MAX_RUNS` | `10000` | Redis’te tutulan replay penceresi |
-| `MAX_DRAWDOWN_PCT` | `8` | Cancel-all devre kesici |
-| `MAX_GROSS_EXPOSURE_PCT` | `65` | Toplam long notional tavanı |
-| `MAX_MARKET_EXPOSURE_PCT` | `15` | Tek piyasa tavanı |
+| `MAX_DRAWDOWN_PCT` | `6` | Başlangıç/round peak referanslı cancel-all devre kesici |
+| `MAX_GROSS_EXPOSURE_PCT` | `60` | Toplam long notional tavanı |
+| `MAX_MARKET_EXPOSURE_PCT` | `12` | Tek piyasa tavanı |
 | `CASH_RESERVE_PCT` | `25` | Kullanılmayan nakit tamponu |
-| `ORDER_NOTIONAL_PCT` | `1.25` | Baz emir büyüklüğü; ilk live için düşürün |
+| `ORDER_NOTIONAL_PCT` | `2` | Baz emir büyüklüğü; volatilite/kalibrasyon/likidite ile aşağı ölçeklenir |
+| `MIN_STOP_LOSS_PCT` / `STOP_LOSS_PCT` | `1.5` / `4` | Volatiliteye bağlı stop alt/üst sınırı |
+| `MIN_TAKE_PROFIT_PCT` / `MAX_TAKE_PROFIT_PCT` | `1.5` / `4` | Ücret ve volatiliteye bağlı kâr alma bandı |
 | `QUOTE_TTL_SECONDS` | `240` | Emir yenileme yaş sınırı |
-| `MIN_NET_EDGE_BPS` | `12` | Ücret üstü minimum edge |
+| `MIN_NET_EDGE_BPS` | `30` | Ücret üstü minimum edge |
+| `MAX_SPREAD_BPS` | `120` | Anormal geniş spread devre kesicisi |
+| `LIQUIDITY_DEPTH_BPS` / `MAX_BOOK_PARTICIPATION_PCT` | `25` / `15` | Çıkış book derinliği ve katılım limiti |
 
 ## Operasyonel sınırlar
 
