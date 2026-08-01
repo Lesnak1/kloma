@@ -518,6 +518,7 @@ export class TradingEngine {
       try {
         const result = await this.api.placeOrder({
           propertyId: order.propertyId,
+          tokenName: order.tokenName,
           price: order.price,
           quantity: order.quantity,
           side: order.side,

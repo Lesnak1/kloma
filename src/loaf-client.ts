@@ -109,12 +109,16 @@ export class LoafClient implements LoafApi {
           // A non-JSON upstream error is represented by status only.
         }
         const code = typeof payload.code === "string" ? payload.code : undefined;
-        const message =
+        const baseMessage =
           typeof payload.errorMessage === "string"
             ? payload.errorMessage
             : typeof payload.error === "string"
               ? payload.error
               : `Loaf API returned HTTP ${response.status}`;
+        const details = Array.isArray(payload.details)
+          ? payload.details.filter((item): item is string => typeof item === "string" && item.length > 0).join("; ")
+          : "";
+        const message = details ? `${baseMessage}: ${details}` : baseMessage;
 
         if (idempotent && attempt + 1 < attempts && (response.status === 429 || response.status === 503)) {
           await delay(retryDelay(response, attempt));

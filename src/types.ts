@@ -174,6 +174,7 @@ export interface LeaderboardResponse {
 
 export interface OrderRequest {
   propertyId: number;
+  tokenName: string;
   price: number;
   quantity: number;
   side: OrderSide;
