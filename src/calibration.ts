@@ -128,7 +128,7 @@ export function updateDurableState(state: DurableBotState, report: RunReport): D
   const makerFeeBps = Math.max(0, finite(report.fees?.makerFeeBps, 0));
   const portfolioValue = Math.max(0, finite(report.portfolio?.value, 0));
   const roundNumber = report.competition.roundNumber;
-  if (portfolioValue > 0 && roundNumber !== null) {
+  if (portfolioValue > 0) {
     next.risk = next.risk.roundNumber === roundNumber
       ? { roundNumber, peakPortfolioValue: Math.max(next.risk.peakPortfolioValue, portfolioValue) }
       : { roundNumber, peakPortfolioValue: portfolioValue };

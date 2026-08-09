@@ -49,6 +49,8 @@ async function main(): Promise<void> {
       pointsModeEligible: decision.metrics.pointsModeEligible,
       pointsRoundTripCostBps: decision.metrics.pointsRoundTripCostBps,
       pointsOrderNotional: decision.metrics.pointsOrderNotional,
+      qualitySizeScale: decision.metrics.qualitySizeScale,
+      sizingEquity: decision.metrics.sizingEquity,
       side: order?.side ?? null,
       orderNotional: order ? order.price * order.quantity : 0,
     };

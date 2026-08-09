@@ -74,7 +74,7 @@ UPSTASH_REDIS_REST_URL=<upstash-rest-url>
 UPSTASH_REDIS_REST_TOKEN=<upstash-rest-token>
 REQUIRE_DURABLE_LOCK=true
 STATE_NAMESPACE=loaf:league:trader
-TELEMETRY_MAX_RUNS=10000
+TELEMETRY_MAX_RUNS=2000
 TRADING_ENABLED=false
 ALLOW_OUTSIDE_COMPETITION=false
 KILL_SWITCH=false
@@ -161,14 +161,18 @@ Tam liste [.env.example](./.env.example) içindedir.
 | `ALLOW_OUTSIDE_COMPETITION` | `false` | Aktif tur dışında yeni emir üretimini engeller |
 | `STOP_AFTER_ROUND_NUMBER` | boş | Terminal round sonrası cleanup + scheduler stop |
 | `REQUIRE_DURABLE_LOCK` | `false` | Live için `true`; Redis yoksa tick’i fail-closed durdurur |
-| `TELEMETRY_MAX_RUNS` | `10000` | Redis’te tutulan replay penceresi |
+| `TELEMETRY_MAX_RUNS` | `2000` | Redis’te tutulan replay penceresi; free-tier bellek güvenliği için hard cap |
 | `MAX_DRAWDOWN_PCT` | `6` | Başlangıç/round peak referanslı cancel-all devre kesici |
 | `MAX_GROSS_EXPOSURE_PCT` | `60` | Toplam long notional tavanı |
 | `MAX_MARKET_EXPOSURE_PCT` | `12` | Tek piyasa tavanı |
 | `CASH_RESERVE_PCT` | `25` | Kullanılmayan nakit tamponu |
 | `ORDER_NOTIONAL_PCT` | `2` | Baz emir büyüklüğü; volatilite/kalibrasyon/likidite ile aşağı ölçeklenir |
+| `COMPOUNDING_ENABLED` | `true` | Toplam hesap equity artışını kontrollü sizing equity’ye dahil eder |
+| `COMPOUNDING_PROFIT_REINVEST_PCT` | `100` | Pozitif kârın yeniden boyutlamaya dahil edilen yüzdesi |
+| `COMPOUNDING_MAX_EQUITY_MULTIPLIER` | `1.5` | Sizing equity’yi başlangıç sermayesinin bu katında sınırlar |
+| `QUALITY_SIZE_BOOST_MAX` | `1.35` | Kanıtlanmış pozitif kalibrasyona verilen maksimum ek size ölçeği |
 | `POINTS_MODE_ENABLED` | `true` | Hacim-puan odaklı küçük pasif likidite döngülerini açar |
-| `POINTS_ORDER_NOTIONAL_PCT` | `0.5` | Points modu baz emir boyutu |
+| `POINTS_ORDER_NOTIONAL_PCT` | `0.6` | Points modu baz emir boyutu |
 | `POINTS_MAX_MARKET_EXPOSURE_PCT` | `3` | Points envanteri için market başına ayrı ve daha düşük tavan |
 | `POINTS_DRAWDOWN_STOP_PCT` | `2` | Bu drawdown seviyesinde yeni points envanteri durur |
 | `POINTS_MAX_ROUND_TRIP_COST_BPS` | `90` | Points döngüsünün ham tahmini maliyet bütçesi; rank modu bunu preserve/balanced/defend için aşağı ölçekler |

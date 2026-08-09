@@ -1,11 +1,20 @@
 # Yarışma implementation ve işletim planı
 
+## Compound-v4 ölçekleme kararı — 9 Ağustos 2026
+
+- Canlı hesap `100.000` başlangıçtan `129.608,29 USDL` equity'ye ulaştı. Boyutlandırma bu equity artışını kullanır, fakat `150.000 USDL` sizing equity'de tavanlanır.
+- Points baz emri equity'nin `%0,60` değeridir. Kalite boost'u sadece en az 20 örnekli, pozitif fee-sonrası edge ve en az `%50` yön doğruluğu olan markette devreye girer; toplam ölçek `1,35×` ile sınırlıdır.
+- Negatif edge veya düşük doğrulukta eski küçültme/karantina kuralları aynen sürer. Market başına ve toplam exposure limitleri büyütülmemiştir.
+- High-water drawdown koruması aktif round olmasa da kalıcı peak'i kullanır. Equity düşerse compounding boyutu da aynı yönde küçülür.
+- Redis telemetry `2.000` ayrıntılı run ile sınırlıdır. İlk compound-v4 tick'i mevcut listenin en eski yaklaşık `6.996` kaydını silerek free-tier depolamayı tekrar çalışır duruma getirir.
+- Production yeniden açılmadan önce platform market status kontrolü yapılır; halted markette bot emir üretmez.
+
 Amaç, Loaf’ın açıkladığı hacim bazlı puanlama altında kontrollü puan üretirken fee-sonrası edge’i ve haftalık alt %30 eliminasyon savunmasını birlikte optimize etmektir. Ödül veya kâr garantisi verilemez.
 
-## Points-v3 çalışma ilkesi
+## Önceki Points-v3 çalışma ilkesi
 
 - Her `$1` işlem hacmi puan ürettiği için bot tüm LIVE marketleri tarar ve yayınlanan global volume multiplier eşiklerini takip eder.
-- Points emirleri `%0,5` baz notional, market başına `%3` envanter tavanı ve yakın bid likiditesinin `%15` katılım sınırıyla pasif kalır.
+- Compound-v4 öncesi Points-v3 emirleri `%0,5` baz notional kullanıyordu; güncel değer yukarıdaki kararla `%0,60` oldu. Market başına `%3` envanter tavanı ve yakın bid likiditesinin `%15` katılım sınırı korunur.
 - Tahmini round-trip maliyeti `POINTS_MAX_ROUND_TRIP_COST_BPS` bütçesini aşarsa veya 5m/15m yapı belirgin bearish ise yeni points alışı açılmaz.
 - Drawdown `%2` olduğunda points girişleri kapanır; normal pozisyon çıkışları ve hard `%6` cancel-all koruması çalışmaya devam eder.
 - Mevcut envanteri azaltan SELL emirleri, yeni BUY emirlerinden önce gönderilir.

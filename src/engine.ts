@@ -232,7 +232,8 @@ export class TradingEngine {
     const startingBalance = Number(activeRound && "startingBalanceUsdl" in activeRound
       ? activeRound.startingBalanceUsdl
       : this.config.startingBalanceUsdl) || this.config.startingBalanceUsdl;
-    const peakPortfolioValue = activeRound && this.riskState?.roundNumber === activeRound.roundNumber
+    const riskRoundNumber = activeRound?.roundNumber ?? null;
+    const peakPortfolioValue = this.riskState?.roundNumber === riskRoundNumber
       ? this.riskState.peakPortfolioValue
       : 0;
     const drawdownReferenceValue = Math.max(startingBalance, peakPortfolioValue);
@@ -342,6 +343,7 @@ export class TradingEngine {
           candles: snapshot.candles,
           position: positions.get(snapshot.market.tokenName.toLowerCase()),
           portfolioValue: portfolio.portfolioValue,
+          startingBalance,
           cash: portfolio.cash,
           grossExposure,
           drawdownPct,

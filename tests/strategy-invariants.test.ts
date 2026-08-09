@@ -74,8 +74,11 @@ test("2,000 deterministic market scenarios preserve execution invariants", () =>
       assert.ok(tickAligned(order.quantity, 0.1), `scenario ${scenario}: quantity precision`);
       assert.ok(order.price * order.quantity >= 10 - 1e-8, `scenario ${scenario}: minimum notional`);
       if (order.side === "BUY") assert.ok(order.price < ask, `scenario ${scenario}: buy must not cross`);
-      if (order.side === "SELL" && order.timeInForce !== "IOC") {
+      if (order.side === "SELL" && !order.rationale.includes("volatility-stop-loss")) {
         assert.ok(order.price > bid, `scenario ${scenario}: passive sell must not cross`);
+      }
+      if (order.rationale.includes("volatility-stop-loss")) {
+        assert.ok(order.price >= bid, `scenario ${scenario}: stop loss must be marketable`);
       }
     }
     if (sell) assert.ok(sell.quantity <= positionQuantity + 1e-8, `scenario ${scenario}: no short selling`);

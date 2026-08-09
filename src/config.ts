@@ -14,6 +14,10 @@ export interface BotConfig {
   maxMarketExposurePct: number;
   cashReservePct: number;
   orderNotionalPct: number;
+  compoundingEnabled: boolean;
+  compoundingProfitReinvestPct: number;
+  compoundingMaxEquityMultiplier: number;
+  qualitySizeBoostMax: number;
   pointsModeEnabled: boolean;
   pointsOrderNotionalPct: number;
   pointsMaxMarketExposurePct: number;
@@ -173,8 +177,12 @@ export function loadConfig(options: { requireApiKey?: boolean } = {}): BotConfig
     maxMarketExposurePct,
     cashReservePct: numberInRange("CASH_RESERVE_PCT", 25, 0, 95),
     orderNotionalPct: numberInRange("ORDER_NOTIONAL_PCT", 2, 0.05, 10),
+    compoundingEnabled: bool("COMPOUNDING_ENABLED", true),
+    compoundingProfitReinvestPct: numberInRange("COMPOUNDING_PROFIT_REINVEST_PCT", 100, 0, 100),
+    compoundingMaxEquityMultiplier: numberInRange("COMPOUNDING_MAX_EQUITY_MULTIPLIER", 1.5, 1, 5),
+    qualitySizeBoostMax: numberInRange("QUALITY_SIZE_BOOST_MAX", 1.35, 1, 2),
     pointsModeEnabled: bool("POINTS_MODE_ENABLED", true),
-    pointsOrderNotionalPct: numberInRange("POINTS_ORDER_NOTIONAL_PCT", 0.5, 0.05, 5),
+    pointsOrderNotionalPct: numberInRange("POINTS_ORDER_NOTIONAL_PCT", 0.6, 0.05, 5),
     pointsMaxMarketExposurePct,
     pointsDrawdownStopPct,
     pointsMaxRoundTripCostBps: numberInRange("POINTS_MAX_ROUND_TRIP_COST_BPS", 90, 0, 200),
@@ -199,7 +207,10 @@ export function loadConfig(options: { requireApiKey?: boolean } = {}): BotConfig
     upstashRestUrl,
     upstashRestToken,
     stateNamespace,
-    telemetryMaxRuns: Math.floor(numberInRange("TELEMETRY_MAX_RUNS", 10_000, 100, 50_000)),
+    telemetryMaxRuns: Math.min(
+      2_000,
+      Math.floor(numberInRange("TELEMETRY_MAX_RUNS", 2_000, 100, 50_000)),
+    ),
     requireDurableLock,
   };
 }

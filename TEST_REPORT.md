@@ -1,5 +1,41 @@
 # Expert test raporu
 
+## 9 Ağustos 2026 — compound-v4 canlı audit (en güncel)
+
+### Ölçülen production sonucu
+
+- Hesap değeri: `129.608,29 USDL`; başlangıç sermayesine göre toplam getiri: `+29.608,29 USDL` (`+%29,61`).
+- Mevcut pozisyonların unrealized PnL toplamı: `+2.539,26 USDL`.
+- Tek dış nakit hareketi `100.000 USDL` başlangıç transferi olduğundan yaklaşık realized kazanç `27.069,03 USDL` olarak hesaplanır. Bu değer Loaf'ın ayrıca yayınladığı realized-PnL alanı değil, cash-flow mutabakatından türetilmiş bir tahmindir.
+- Lifetime volume: `7.810.643,76 USDL`.
+- API'nin erişilebilir son `10.000` fill penceresi: `5.469.677,82 USDL` hacim ve `2.967,55 USDL` fee.
+- İncelenen bir saatlik üretim penceresinde `353` kabul edilmiş emir yazımına karşılık `136` gerçek fill oluştu (`%38,5` fill/admission oranı). API'de `success=true`, fill garantisi değildir.
+- Açık pozisyonların tamamı audit anında kârlıydı; en yüksek açık getiriler Monaco (`+%16,10`) ve Liberty (`+%11,66`) oldu.
+
+### Bulunan üretim sorunları ve compound-v4 düzeltmeleri
+
+- Upstash'teki `8.996` ayrıntılı run kaydı yaklaşık `104,9 MB` kullanarak free-tier depolama sınırına ulaştı; yeni telemetry yazımı 502 üretmeye başladı. Retention `2.000` kayıt hard cap'ine indirildi ve pipeline, yeni kaydı yazmadan önce eski kayıtları kırpacak şekilde sıralandı.
+- Stop-loss emirlerinde `IOC` Loaf production doğrulamasından dönüyordu. Stop-loss artık güncel best bid'de marketable `GTC` limit olarak gönderiliyor.
+- Competition API round döndürmediğinde high-water mark okunmuyordu. Null-round peak artık kalıcı tutuluyor; `129k` seviyesinden olası drawdown başlangıçtaki `100k` yerine gerçek peak'e göre korunuyor.
+- Points baz büyüklüğü equity'nin `%0,50` seviyesinden `%0,60` seviyesine çıkarıldı.
+- Compounding açık, kâr reinvest oranı `%100`, sizing equity tavanı başlangıç sermayesinin `1,5×` değeri. Zarar halinde boyut gerçek equity ile otomatik küçülür.
+- En az 20 gözlem, pozitif fee-sonrası EMA edge ve en az `%50` yön doğruluğu olmayan piyasaya ek size boost verilmez. Uygun piyasada toplam kalite ölçeği en fazla `1,35×` olur.
+- Mevcut hard sınırlar korunur: `%25` cash reserve, `%60` gross exposure, `%12` normal market exposure, `%3` points inventory ve `%6` high-water drawdown halt.
+
+### Platform durumu
+
+Audit anında resmi competition endpoint'i aktif round döndürmüyor, League sayfası upgrade/maintenance gösteriyor ve 10/10 market halted durumunda. Bu yüzden botun yeni emir üretmemesi beklenen fail-safe davranıştır; piyasa açıldığında cron tick'leri yeniden değerlendirme yapar.
+
+### Compound-v4 otomatik doğrulama
+
+- `48/48` test geçti.
+- `2.000` deterministik piyasa/risk senaryosu invariant ihlali olmadan geçti.
+- Satır coverage: `%91,58`; branch coverage: `%78,43`; function coverage: `%88,73`.
+- TypeScript kontrolü ve optimize Next.js production build başarılı.
+- Doğrulanan yeni davranışlar: kontrollü compounding cap, yalnızca pozitif kalitede size boost, null-round high-water breaker, Redis pre-trim ve Loaf uyumlu marketable GTC stop-loss.
+
+## Önceki points-v3 baseline — 2 Ağustos 2026
+
 Tarih: 2 Ağustos 2026 (Europe/Istanbul)
 
 ## Sonuç

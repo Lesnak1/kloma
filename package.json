@@ -1,6 +1,6 @@
 {
   "name": "loaf-league-trader",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "description": "Serverless, risk-controlled Loaf Markets League trading bot for Vercel.",
   "engines": {
@@ -25,6 +25,7 @@
     "react-dom": "19.2.8"
   },
   "overrides": {
+    "nanoid": "3.3.18",
     "postcss": "8.5.25",
     "sharp": "0.35.3"
   },

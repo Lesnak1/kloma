@@ -209,7 +209,7 @@ export interface DesiredOrder {
   price: number;
   quantity: number;
   type: "LIMIT";
-  timeInForce: "GTC" | "IOC";
+  timeInForce: "GTC";
   rationale: string[];
 }
 
@@ -235,6 +235,8 @@ export interface MarketDecision {
     calibrationNetEdgeBps?: number;
     calibrationAccuracy?: number;
     calibrationSizeScale?: number;
+    qualitySizeScale?: number;
+    sizingEquity?: number;
     calibrationThresholdAddBps?: number;
     calibrationQuarantined?: boolean;
     dynamicStopLossPct?: number;

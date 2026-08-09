@@ -28,7 +28,7 @@ export class UpstashStateStore {
     private readonly restUrl: string,
     private readonly token: string,
     namespace: string,
-    private readonly maxRuns = 10_000,
+    private readonly maxRuns = 2_000,
   ) {
     this.stateKey = `${namespace}:state:v1`;
     this.runsKey = `${namespace}:runs:v1`;
@@ -83,8 +83,8 @@ export class UpstashStateStore {
     const nextState = updateDurableState(currentState, report);
     const pipeline = [
       ["SET", this.stateKey, JSON.stringify(nextState)],
+      ["LTRIM", this.runsKey, 0, this.maxRuns - 2],
       ["LPUSH", this.runsKey, JSON.stringify(report)],
-      ["LTRIM", this.runsKey, 0, this.maxRuns - 1],
       ["EXPIRE", this.runsKey, 60 * 60 * 24 * 30],
     ];
     const result = await this.request<Array<RedisResult<unknown>>>("/pipeline", pipeline);

@@ -32,6 +32,7 @@ export interface StrategyInput {
   candles: Candle[];
   position?: Position;
   portfolioValue: number;
+  startingBalance?: number;
   cash: number;
   grossExposure: number;
   drawdownPct?: number;
@@ -41,6 +42,42 @@ export interface StrategyInput {
   multiplier: number;
   calibration?: StrategyCalibration;
   nowSeconds?: number;
+}
+
+export function compoundedSizingEquity(input: {
+  portfolioValue: number;
+  startingBalance: number;
+  enabled: boolean;
+  profitReinvestPct: number;
+  maxEquityMultiplier: number;
+}): number {
+  const portfolioValue = Math.max(0, input.portfolioValue);
+  const startingBalance = Math.max(0, input.startingBalance);
+  if (startingBalance <= 0) return portfolioValue;
+  if (!input.enabled || portfolioValue <= startingBalance) return Math.min(portfolioValue, startingBalance);
+  const reinvestedProfit = (portfolioValue - startingBalance) * clamp(input.profitReinvestPct / 100, 0, 1);
+  return Math.min(
+    portfolioValue,
+    startingBalance + reinvestedProfit,
+    startingBalance * Math.max(1, input.maxEquityMultiplier),
+  );
+}
+
+export function qualityAdjustedSizeScale(
+  calibration: StrategyCalibration,
+  maximum: number,
+): number {
+  const base = clamp(calibration.sizeScale, 0.4, 1.2);
+  if (
+    calibration.samples < 20 ||
+    calibration.emaNetEdgeBps <= 0 ||
+    calibration.directionalAccuracy < 0.5
+  ) {
+    return base;
+  }
+  const edgeBoost = clamp(calibration.emaNetEdgeBps / 200, 0, 0.25);
+  const accuracyBoost = clamp((calibration.directionalAccuracy - 0.55) * 0.5, 0, 0.1);
+  return clamp(base * (1 + edgeBoost + accuracyBoost), 0.4, Math.max(1, maximum));
 }
 
 function hold(input: StrategyInput, reason: string, state: "hold" | "halt" = "hold"): MarketDecision {
@@ -110,6 +147,14 @@ export function decideMarket(input: StrategyInput): MarketDecision {
   const buyTrendConfirmed = higherTimeframeMomentum >= 20 && oneBarSignedBps >= -volatilityBps * 0.5;
   const sellTrendConfirmed = higherTimeframeMomentum <= -20 && oneBarSignedBps <= volatilityBps * 0.5;
   const calibrationQuarantined = isCalibrationQuarantined(calibration);
+  const sizingEquity = compoundedSizingEquity({
+    portfolioValue: input.portfolioValue,
+    startingBalance: input.startingBalance ?? config.startingBalanceUsdl,
+    enabled: config.compoundingEnabled,
+    profitReinvestPct: config.compoundingProfitReinvestPct,
+    maxEquityMultiplier: config.compoundingMaxEquityMultiplier,
+  });
+  const qualitySizeScale = qualityAdjustedSizeScale(calibration, config.qualitySizeBoostMax);
 
   const positionQuantity = Math.max(0, Number(position?.quantity ?? 0));
   const positionPrice = Number(position?.marketPrice ?? mid) || mid;
@@ -136,12 +181,12 @@ export function decideMarket(input: StrategyInput): MarketDecision {
   const volatilityScale = clamp(100 / volatilityBps, 0.35, 1.15);
   const multiplierScale = clamp(input.multiplier, 1, 2);
   const baseNotional =
-    input.portfolioValue *
+    sizingEquity *
     (config.orderNotionalPct / 100) *
     modeSizeMultiplier(input.riskMode) *
     volatilityScale *
     multiplierScale *
-    calibration.sizeScale;
+    qualitySizeScale;
 
   const cashBudget = Math.max(0, input.cash - input.portfolioValue * (config.cashReservePct / 100));
   const grossBudget = Math.max(0, grossCap - input.grossExposure);
@@ -168,12 +213,12 @@ export function decideMarket(input: StrategyInput): MarketDecision {
     signalBps <= -Math.max(35, volatilityBps * 0.25) ||
     higherTimeframeMomentum <= -Math.max(30, volatilityBps * 0.2);
   const pointsBaseNotional =
-    input.portfolioValue *
+    sizingEquity *
     (config.pointsOrderNotionalPct / 100) *
     modeSizeMultiplier(input.riskMode) *
     volatilityScale *
     multiplierScale *
-    calibration.sizeScale;
+    qualitySizeScale;
   const pointsOrderNotional = Math.min(
     pointsBaseNotional,
     cashBudget,
@@ -266,7 +311,7 @@ export function decideMarket(input: StrategyInput): MarketDecision {
         price,
         quantity,
         type: "LIMIT",
-        timeInForce: stopLoss ? "IOC" : "GTC",
+        timeInForce: "GTC",
         rationale: [
           stopLoss
             ? "volatility-stop-loss"
@@ -324,6 +369,8 @@ export function decideMarket(input: StrategyInput): MarketDecision {
       calibrationNetEdgeBps: calibration.emaNetEdgeBps,
       calibrationAccuracy: calibration.directionalAccuracy,
       calibrationSizeScale: calibration.sizeScale,
+      qualitySizeScale,
+      sizingEquity,
       calibrationThresholdAddBps: calibration.thresholdAddBps,
       calibrationQuarantined,
       dynamicStopLossPct,

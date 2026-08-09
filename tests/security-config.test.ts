@@ -66,3 +66,20 @@ test("production rejects an insecure Loaf API origin", () => {
     assert.throws(() => loadConfig(), /must use HTTPS/);
   });
 });
+
+test("telemetry retention is capped for free-tier durable storage", () => {
+  withEnvironment({
+    ...baseEnvironment,
+    TELEMETRY_MAX_RUNS: "10000",
+    POINTS_ORDER_NOTIONAL_PCT: undefined,
+    COMPOUNDING_ENABLED: undefined,
+    COMPOUNDING_PROFIT_REINVEST_PCT: undefined,
+    COMPOUNDING_MAX_EQUITY_MULTIPLIER: undefined,
+    QUALITY_SIZE_BOOST_MAX: undefined,
+  }, () => {
+    const config = loadConfig();
+    assert.equal(config.telemetryMaxRuns, 2_000);
+    assert.equal(config.pointsOrderNotionalPct, 0.6);
+    assert.equal(config.compoundingEnabled, true);
+  });
+});

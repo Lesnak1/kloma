@@ -44,8 +44,9 @@ test("Upstash store uses NX lock, bounded telemetry and compare-delete release",
     assert.equal(lock[4], "PX");
     assert.equal(calls[2].url, "https://redis.example/pipeline");
     const pipeline = calls[2].body as unknown[][];
-    assert.deepEqual(pipeline[2].slice(0, 3), ["LTRIM", "loaf:test:runs:v1", 0]);
-    assert.equal(pipeline[2][3], 249);
+    assert.deepEqual(pipeline[1].slice(0, 3), ["LTRIM", "loaf:test:runs:v1", 0]);
+    assert.equal(pipeline[1][3], 248);
+    assert.deepEqual(pipeline[2].slice(0, 2), ["LPUSH", "loaf:test:runs:v1"]);
     const release = calls[3].body as unknown[];
     assert.equal(release[0], "EVAL");
     assert.match(String(release[1]), /redis\.call\("get"/);

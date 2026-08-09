@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decideMarket } from "@/src/strategy";
+import { compoundedSizingEquity, decideMarket, qualityAdjustedSizeScale } from "@/src/strategy";
 import { candles, config, detail, market } from "./helpers";
 
 test("strategy produces a non-crossing, precision-safe buy without shorting", () => {
@@ -87,7 +87,7 @@ test("an extreme negative calibration quarantines new inventory while retaining 
   assert.ok(Number.isFinite(decision.metrics.fairPrice));
 });
 
-test("stop loss creates an IOC sell capped by tradeable position", () => {
+test("stop loss creates a marketable GTC sell capped by tradeable position", () => {
   const now = 1_800_000_000;
   const decision = decideMarket({
     config: config(),
@@ -113,8 +113,60 @@ test("stop loss creates an IOC sell capped by tradeable position", () => {
   });
   const sell = decision.desiredOrders.find((order) => order.side === "SELL");
   assert.ok(sell);
-  assert.equal(sell.timeInForce, "IOC");
+  assert.equal(sell.timeInForce, "GTC");
+  assert.equal(sell.price, 100);
   assert.ok(sell.quantity <= 7.4);
+});
+
+test("compounding reinvests profit with an explicit equity cap", () => {
+  assert.equal(compoundedSizingEquity({
+    portfolioValue: 129_608.29,
+    startingBalance: 100_000,
+    enabled: true,
+    profitReinvestPct: 100,
+    maxEquityMultiplier: 1.5,
+  }), 129_608.29);
+  assert.equal(compoundedSizingEquity({
+    portfolioValue: 129_608.29,
+    startingBalance: 100_000,
+    enabled: true,
+    profitReinvestPct: 100,
+    maxEquityMultiplier: 1.2,
+  }), 120_000);
+  assert.equal(compoundedSizingEquity({
+    portfolioValue: 129_608.29,
+    startingBalance: 100_000,
+    enabled: false,
+    profitReinvestPct: 100,
+    maxEquityMultiplier: 1.5,
+  }), 100_000);
+  assert.equal(compoundedSizingEquity({
+    portfolioValue: 90_000,
+    startingBalance: 100_000,
+    enabled: true,
+    profitReinvestPct: 100,
+    maxEquityMultiplier: 1.5,
+  }), 90_000);
+});
+
+test("quality sizing boosts only proven positive calibration", () => {
+  const strong = qualityAdjustedSizeScale({
+    samples: 500,
+    emaNetEdgeBps: 46,
+    directionalAccuracy: 0.66,
+    sizeScale: 1.1,
+    thresholdAddBps: 0,
+  }, 1.35);
+  const weak = qualityAdjustedSizeScale({
+    samples: 500,
+    emaNetEdgeBps: -5,
+    directionalAccuracy: 0.6,
+    sizeScale: 0.59,
+    thresholdAddBps: 5,
+  }, 1.35);
+  assert.ok(strong > 1.1);
+  assert.ok(strong <= 1.35);
+  assert.equal(weak, 0.59);
 });
 
 test("large one-bar jump triggers circuit breaker", () => {
@@ -165,7 +217,7 @@ test("points mode provides a small passive quote within its explicit cost budget
   assert.ok(buy.rationale.includes("points-passive-liquidity"));
   assert.equal(decision.reason, "points-aware-passive-liquidity");
   assert.ok(buy.price < 101);
-  assert.ok(buy.price * buy.quantity <= 600, "points quote stays near its 0.5% sizing budget");
+  assert.ok(buy.price * buy.quantity <= 700, "points quote stays near its 0.6% sizing budget");
 });
 
 test("points entries stop before the portfolio-wide drawdown breaker", () => {

@@ -1,1 +1,1 @@
-export const STRATEGY_VERSION = "points-v3.1";
+export const STRATEGY_VERSION = "compound-v4";

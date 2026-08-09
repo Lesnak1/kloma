@@ -104,3 +104,37 @@ test("drawdown breaker protects gains using the persisted round peak", async () 
   assert.equal(report.mode, "halted");
   assert.match(report.warnings[0], /Drawdown/);
 });
+
+test("drawdown breaker protects compounded gains without an active round", async () => {
+  let cancelled = 0;
+  const api: LoafApi = {
+    async getCompetition() {
+      return { rounds: [], featuredRound: null, makerFeeBps: 0, takerFeeBps: 70, queueCount: 0 };
+    },
+    async getQueuePosition() { return forbidden(); },
+    async getLeaderboard() { return null; },
+    async getMarkets() { return { properties: [] }; },
+    async getMarketDetail() { return forbidden(); },
+    async getCandles() { return forbidden(); },
+    async getPortfolio() {
+      return { cash: 110_000, frozen: 0, portfolioValue: 110_000, portfolioPnl: 0, portfolioPnlPercent: 0, positions: [] };
+    },
+    async getActiveOrders() { return []; },
+    async cancelOrder() { return forbidden(); },
+    async cancelAll() {
+      cancelled += 1;
+      return { requestedCount: 0, cancelledOrderIds: [], failedOrders: [] };
+    },
+    async placeOrder() { return forbidden(); },
+  };
+  const report = await new TradingEngine(
+    api,
+    config({ tradingEnabled: true, allowOutsideCompetition: true, maxDrawdownPct: 8 }),
+    undefined,
+    {},
+    { roundNumber: null, peakPortfolioValue: 120_000 },
+  ).run();
+  assert.equal(cancelled, 1);
+  assert.equal(report.mode, "halted");
+  assert.match(report.warnings[0], /Drawdown/);
+});

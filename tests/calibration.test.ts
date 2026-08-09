@@ -81,3 +81,15 @@ test("durable state tracks the peak separately for each competition round", () =
   state = updateDurableState(state, nextRound);
   assert.deepEqual(state.risk, { roundNumber: 2, peakPortfolioValue: 100_000 });
 });
+
+test("durable state tracks a high-water mark while the competition API has no round", () => {
+  const first = report("2026-08-01T00:00:00.000Z", 100, 101);
+  first.competition = { active: false, roundNumber: null, roundStatus: null, admitted: null };
+  first.portfolio = { value: 129_000, cash: 100_000, frozen: 0, pnl: 2_000, drawdownPct: 0 };
+  const second = report("2026-08-01T00:20:00.000Z", 102, 103);
+  second.competition = { active: false, roundNumber: null, roundStatus: null, admitted: null };
+  second.portfolio = { value: 125_000, cash: 96_000, frozen: 0, pnl: 1_000, drawdownPct: 0 };
+
+  const state = updateDurableState(updateDurableState(emptyDurableState(), first), second);
+  assert.deepEqual(state.risk, { roundNumber: null, peakPortfolioValue: 129_000 });
+});
