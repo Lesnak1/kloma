@@ -1,5 +1,13 @@
 # Expert test raporu
 
+## 10 Agustos 2026 - WebSocket worker-v7 (dogrulama bekliyor)
+
+- Kalici worker, Loaf'in `orderbook:{propertyId}` kanallarina abone olur; en likit 24 LIVE marketi 60 saniyede yeniden kesfeder ve 5 saniye altinda event firtinasiyla tekrar tekrar execution calistirmaz.
+- Taze WebSocket cache'i kullanildiginda TradingEngine'in REST `market detail`/`candles` okumalarini atladigi otomatik testle dogrulandi. Cache eskirse fail-safe olarak REST geri donusu devam eder.
+- Worker ile Vercel ayni Upstash NX lock'unu kullanir. Lock mesgulse worker execution'i `distributed-lock-held` olarak atlar; ikinci bir emir akisi yaratmaz.
+- 10 Agustos 2026 public Loaf smoke testi: `wss://api.loafmarkets.com/ws` baglantisi, `channels: ["orderbook:opera"]` subscription confirmation'i ve gercek `orderbook_update` mesaji basariyla alindi. Testte secret veya emir kullanilmadi.
+- Bu satir sadece kod/dogrulama kapsamindadir. Gercek Hetzner baglantisi, WebSocket subscription kabulunun sunucu ortaminda surekliligi ve Loaf aktif tur davranisi server kurulduktan sonra ayrica kontrol edilmelidir.
+
 ## 10 Ağustos 2026 — Round 1 volume-max hazırlığı (en güncel)
 
 - Rank-chasing-v6: Statik `20M` telemetry hedefi kaldırıldı. Bot önce `30M` 5× tier baseline’ını izler; aktif round ile eşleşen leaderboard’daki P3 volume hızına `%12` marj ekleyerek hedefini yükseltir. Erken, farklı round’a ait veya bozuk leaderboard verisi pace büyütmez.

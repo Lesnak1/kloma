@@ -1,6 +1,6 @@
 {
   "name": "loaf-league-trader",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "private": true,
   "description": "Serverless, risk-controlled Loaf Markets League trading bot for Vercel.",
   "engines": {
@@ -10,6 +10,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "worker": "tsx worker/loaf-worker.ts",
     "lint": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "test:coverage": "node --import tsx --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-functions=80 --test-coverage-branches=70 tests/*.test.ts",
@@ -22,7 +23,8 @@
   "dependencies": {
     "next": "16.2.12",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "ws": "^8.21.3"
   },
   "overrides": {
     "nanoid": "3.3.18",
@@ -33,6 +35,7 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@types/ws": "^8.5.14",
     "tsx": "^4.20.0",
     "typescript": "^5.9.3"
   }

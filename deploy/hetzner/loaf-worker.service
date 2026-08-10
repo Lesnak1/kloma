@@ -1,0 +1,27 @@
+[Unit]
+Description=Loaf League WebSocket Trading Worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=loafbot
+Group=loafbot
+WorkingDirectory=/opt/loaf-worker
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/loaf-worker.env
+ExecStart=/usr/bin/npm run worker
+Restart=always
+RestartSec=3
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/loaf-worker
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=loaf-worker
+
+[Install]
+WantedBy=multi-user.target

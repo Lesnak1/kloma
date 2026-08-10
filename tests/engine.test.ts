@@ -138,6 +138,54 @@ test("volume-max mode does not shrink a leading trader below balanced maker sizi
   assert.equal(volumeMaxRiskMode("preserve", false), "preserve");
 });
 
+test("a fresh WebSocket cache avoids REST book and candle reads during an active tick", async () => {
+  const now = Math.floor(Date.now() / 1000);
+  const series = candles(now, 0.0001);
+  let marketReads = 0;
+  const api: LoafApi = {
+    async getCompetition() {
+      return {
+        rounds: [{ roundNumber: 1, name: "Volumemaxxing", status: "ACTIVE" }],
+        featuredRound: {
+          roundNumber: 1,
+          name: "Volumemaxxing",
+          status: "ACTIVE",
+          startsAt: now - 3 * 60 * 60,
+          endsAt: now + 3 * 24 * 60 * 60,
+          startingBalanceUsdl: 100_000,
+        },
+        makerFeeBps: 0,
+        takerFeeBps: 10,
+        queueCount: 0,
+      };
+    },
+    async getQueuePosition() { return { position: null, finalPlacement: null, queueCount: 0 }; },
+    async getLeaderboard() { return { roundNumber: 1, entries: [] }; },
+    async getMarkets() { return { properties: [market], competitionModeActive: true }; },
+    async getMarketDetail() { marketReads += 1; throw new Error("fresh cache should be used"); },
+    async getCandles() { marketReads += 1; throw new Error("fresh cache should be used"); },
+    async getPortfolio() {
+      return {
+        cash: 100_000,
+        frozen: 0,
+        portfolioValue: 100_000,
+        portfolioPnl: 0,
+        portfolioPnlPercent: 0,
+        positions: [],
+        applicableFees: { makerFeeBps: 0, takerFeeBps: 10 },
+      };
+    },
+    async getActiveOrders() { return []; },
+    async cancelOrder() { throw new Error("dry-run must not cancel"); },
+    async cancelAll() { throw new Error("dry-run must not cancel all"); },
+    async placeOrder() { throw new Error("dry-run must not place"); },
+  };
+  const cache = new Map([[market.tokenName, { detail, candles: series, updatedAt: Date.now() }]]);
+  const report = await new TradingEngine(api, config(), undefined, {}, undefined, cache).run();
+  assert.equal(marketReads, 0);
+  assert.equal(report.decisions.length, 1);
+});
+
 test("rank chasing uses the full catch-up scale until the projected P3 pace is met", () => {
   const base = config({ volumeMaxPointsOrderNotionalPct: 0.75, volumeMaxCatchupScale: 1.25 });
   const passive = volumeMaxStrategyConfig(base, true, 0.9, 0, false);

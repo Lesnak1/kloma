@@ -1,1 +1,1 @@
-export const STRATEGY_VERSION = "round1-rank-chase-v6";
+export const STRATEGY_VERSION = "round1-websocket-rank-chase-v7";

@@ -16,9 +16,11 @@ import {
 import { decideMarket } from "@/src/strategy";
 import type {
   ActiveOrder,
+  Candle,
   CompetitionRound,
   DesiredOrder,
   FeaturedRound,
+  MarketDetail,
   MarketDecision,
   MarketSummary,
   Position,
@@ -127,6 +129,12 @@ function standingTiers(leaderboardTiers: unknown, featuredTiers: unknown): unkno
   return leaderboardTiers ?? featuredTiers;
 }
 
+export interface MarketDataCacheEntry {
+  detail: MarketDetail;
+  candles: Candle[];
+  updatedAt: number;
+}
+
 export class TradingEngine {
   constructor(
     private readonly api: LoafApi,
@@ -134,6 +142,7 @@ export class TradingEngine {
     private readonly scheduler?: SchedulerControl,
     private readonly calibrations: Record<string, StrategyCalibration> = {},
     private readonly riskState?: PortfolioRiskState,
+    private readonly marketDataCache?: ReadonlyMap<string, MarketDataCacheEntry>,
   ) {}
 
   async run(): Promise<RunReport> {
@@ -438,6 +447,15 @@ export class TradingEngine {
     const marketSnapshots = await Promise.all(
       selected.map(async (market) => {
         try {
+          const cached = this.marketDataCache?.get(market.tokenName.toLowerCase());
+          if (
+            cached &&
+            cached.detail.orderBook &&
+            cached.detail.property.propertyId === market.propertyId &&
+            Date.now() - cached.updatedAt <= 15_000
+          ) {
+            return { market, detail: cached.detail, candles: cached.candles, error: null as string | null };
+          }
           const [detail, candles] = await Promise.all([
             this.api.getMarketDetail(market.tokenName),
             this.api.getCandles(market.tokenName, "5m", 120),
