@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { TradingEngine } from "@/src/engine";
+import { TradingEngine, volumeMaxRiskMode } from "@/src/engine";
 import type { LoafApi } from "@/src/loaf-client";
 import type { SchedulerControl } from "@/src/scheduler";
 import { candles, config, detail, market } from "./helpers";
@@ -31,6 +31,100 @@ test("inactive competition is a hard gate by default", async () => {
   assert.equal(report.competition.active, false);
   assert.equal(report.actions[0]?.result, "no active competition round");
   assert.equal(state.readPastCompetition, false);
+});
+
+test("a scheduled draft round holds new orders even when outside-round trading was previously enabled", async () => {
+  const { api, state } = inactiveApi();
+  api.getCompetition = async () => ({
+    rounds: [{ roundNumber: 1, name: "Volumemaxxing", status: "DRAFT" }],
+    featuredRound: { roundNumber: 1, name: "Volumemaxxing", status: "DRAFT" },
+    makerFeeBps: 0,
+    takerFeeBps: 10,
+    queueCount: 0,
+  });
+
+  const report = await new TradingEngine(api, config({ allowOutsideCompetition: true })).run();
+  assert.equal(report.mode, "dry-run");
+  assert.match(report.actions[0]?.result ?? "", /preserving capital/);
+  assert.match(report.warnings[0] ?? "", /HOLD_DURING_DRAFT_ROUND/);
+  assert.equal(state.readPastCompetition, false);
+});
+
+test("volume-max round scans every LIVE market and force-includes the featured arena asset", async () => {
+  const now = Math.floor(Date.now() / 1000);
+  const series = candles(now, 0.0001);
+  const tokens = ["terafab", "opera", "eiffel", "liberty", "monaco", "marina", "goldengate", "yongin", "metlife", "rainier", "deepwaterbay"];
+  const markets = tokens.map((token, index) => ({
+    ...market,
+    propertyId: index + 1,
+    tokenName: token,
+    ticker: token.slice(0, 4).toUpperCase(),
+    volume24h: token === "terafab" ? 0 : 1_000_000 + index,
+    isCompetition: token === "terafab",
+    candlesticks: series,
+  }));
+  const requested = new Set<string>();
+  const api: LoafApi = {
+    async getCompetition() {
+      return {
+        rounds: [{ roundNumber: 1, name: "Volumemaxxing", status: "ACTIVE" }],
+        featuredRound: {
+          roundNumber: 1,
+          name: "Volumemaxxing",
+          status: "ACTIVE",
+          startsAt: now - 2 * 60 * 60,
+          endsAt: now + 3 * 24 * 60 * 60,
+          startingBalanceUsdl: 100_000,
+          newAssetProperty: { propertyId: 1, tokenName: "terafab" },
+          volumeMultiplierTiers: [{ minVolume: 0, multiplier: 1 }, { minVolume: 5_000_000, multiplier: 2 }],
+        },
+        makerFeeBps: 0,
+        takerFeeBps: 10,
+        queueCount: 0,
+      };
+    },
+    async getQueuePosition() { return { position: null, finalPlacement: null, queueCount: 0 }; },
+    async getLeaderboard() { return { roundNumber: 1, entries: [] }; },
+    async getMarkets() { return { properties: markets, competitionModeActive: true }; },
+    async getMarketDetail(tokenName) {
+      requested.add(tokenName);
+      const selected = markets.find((item) => item.tokenName === tokenName)!;
+      return {
+        ...detail,
+        property: { ...detail.property, propertyId: selected.propertyId, tokenName, ticker: selected.ticker },
+      };
+    },
+    async getCandles() { return { resolution: "5m", candles: series, oldestTs: series[0].time, hasMore: false }; },
+    async getPortfolio() {
+      return {
+        cash: 100_000,
+        frozen: 0,
+        portfolioValue: 100_000,
+        portfolioPnl: 0,
+        portfolioPnlPercent: 0,
+        positions: [],
+        applicableFees: { makerFeeBps: 0, takerFeeBps: 10 },
+      };
+    },
+    async getActiveOrders() { return []; },
+    async cancelOrder() { throw new Error("dry-run must not cancel"); },
+    async cancelAll() { throw new Error("dry-run must not cancel all"); },
+    async placeOrder() { throw new Error("dry-run must not place"); },
+  };
+
+  const report = await new TradingEngine(api, config({ volumeMaxMarketsPerTick: 12 })).run();
+  assert.equal(requested.size, tokens.length);
+  assert.equal(requested.has("terafab"), true);
+  assert.equal(requested.has("opera"), true);
+  assert.equal(report.actions.filter((action) => action.action === "place").length, 10);
+  assert.equal(report.leaderboard?.volumeMaxMode, true);
+  assert.equal(report.leaderboard?.volumeTarget, 20_000_000);
+});
+
+test("volume-max mode does not shrink a leading trader below balanced maker sizing", () => {
+  assert.equal(volumeMaxRiskMode("preserve", true), "balanced");
+  assert.equal(volumeMaxRiskMode("attack", true), "attack");
+  assert.equal(volumeMaxRiskMode("preserve", false), "preserve");
 });
 
 test("terminal target round cancels open orders before disabling the scheduler", async () => {

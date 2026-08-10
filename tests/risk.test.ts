@@ -4,6 +4,7 @@ import {
   assessStanding,
   explicitMarketMultiplier,
   portfolioDrawdownPct,
+  volumePaceForRound,
   volumeMultiplierForStanding,
 } from "@/src/risk";
 import { market } from "./helpers";
@@ -56,4 +57,16 @@ test("unknown volume tier shapes fail closed at a 1x multiplier", () => {
     nextThreshold: null,
     nextMultiplier: null,
   });
+});
+
+test("round volume pace exposes catch-up target without inventing an early ratio", () => {
+  const round = { roundNumber: 1, startsAt: 1_000, endsAt: 2_000, status: "ACTIVE" };
+  assert.deepEqual(volumePaceForRound(round, 0, 20_000_000, 1_005_000), {
+    targetVolume: 20_000_000,
+    expectedVolume: 100_000,
+    paceRatio: null,
+  });
+  const pace = volumePaceForRound(round, 4_000_000, 20_000_000, 1_500_000);
+  assert.equal(pace.expectedVolume, 10_000_000);
+  assert.equal(pace.paceRatio, 0.4);
 });

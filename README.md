@@ -159,6 +159,7 @@ Tam liste [.env.example](./.env.example) içindedir.
 | `TRADING_ENABLED` | `false` | `false` iken hiçbir trade write göndermez |
 | `LOAF_HANDLE` / `LOAF_WALLET_ADDRESS` | boş | Kendi rank’ınızı bularak preserve/defend/attack seçer |
 | `ALLOW_OUTSIDE_COMPETITION` | `false` | Aktif tur dışında yeni emir üretimini engeller |
+| `HOLD_DURING_DRAFT_ROUND` | `true` | Açıklanmış DRAFT turunda quote cleanup yapar ve 100k reset öncesi yeni emir açmaz |
 | `STOP_AFTER_ROUND_NUMBER` | boş | Terminal round sonrası cleanup + scheduler stop |
 | `REQUIRE_DURABLE_LOCK` | `false` | Live için `true`; Redis yoksa tick’i fail-closed durdurur |
 | `TELEMETRY_MAX_RUNS` | `2000` | Redis’te tutulan replay penceresi; free-tier bellek güvenliği için hard cap |
@@ -176,6 +177,12 @@ Tam liste [.env.example](./.env.example) içindedir.
 | `POINTS_MAX_MARKET_EXPOSURE_PCT` | `3` | Points envanteri için market başına ayrı ve daha düşük tavan |
 | `POINTS_DRAWDOWN_STOP_PCT` | `2` | Bu drawdown seviyesinde yeni points envanteri durur |
 | `POINTS_MAX_ROUND_TRIP_COST_BPS` | `90` | Points döngüsünün ham tahmini maliyet bütçesi; rank modu bunu preserve/balanced/defend için aşağı ölçekler |
+| `VOLUME_MAX_MODE` | `true` | Round 1 Volumemaxxing aktifken volume-specific maker stratejisini açar |
+| `VOLUME_MAX_TARGET_VOLUME` | `20000000` | Round içi telemetry pace hedefi; hard risk limitini yükseltmez |
+| `VOLUME_MAX_MARKETS_PER_TICK` / `VOLUME_MAX_ORDERS_PER_TICK` | `12` / `10` | Round 1'de tüm LIVE market + Terafab tarama ve emir değerlendirme tavanı |
+| `VOLUME_MAX_POINTS_ORDER_NOTIONAL_PCT` | `0.75` | Round 1 points quote baz büyüklüğü; pace gerisinde en fazla 1.15× artar |
+| `VOLUME_MAX_POINTS_MAX_MARKET_EXPOSURE_PCT` | `4` | Round 1 points market başına envanter tavanı |
+| `VOLUME_MAX_BOOK_PARTICIPATION_PCT` / `VOLUME_MAX_QUOTE_TTL_SECONDS` | `20` / `90` | Round 1 pasif book katılımı ve quote yenileme yaşı |
 | `MAX_MARKETS_PER_TICK` | `10` | Her heartbeat’te ayrıntılı taranacak LIVE market sayısı |
 | `MIN_STOP_LOSS_PCT` / `STOP_LOSS_PCT` | `1.5` / `4` | Volatiliteye bağlı stop alt/üst sınırı |
 | `MIN_TAKE_PROFIT_PCT` / `MAX_TAKE_PROFIT_PCT` | `1.5` / `4` | Ücret ve volatiliteye bağlı kâr alma bandı |

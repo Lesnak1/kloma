@@ -121,8 +121,8 @@ export interface PortfolioComponent {
 export interface CompetitionRound {
   roundNumber: number;
   name?: string;
-  startsAt?: string;
-  endsAt?: string;
+  startsAt?: string | number;
+  endsAt?: string | number;
   status: string;
   totalPrizePool?: number;
   participantBatchSize?: number;
@@ -133,7 +133,12 @@ export interface FeaturedRound extends CompetitionRound {
   startingBalanceUsdl?: number;
   prizePool?: unknown;
   volumeMultiplierTiers?: unknown;
-  newAssetProperty?: unknown;
+  newAssetProperty?: {
+    propertyId?: number;
+    tokenName?: string;
+    assetName?: string;
+    ticker?: string;
+  };
 }
 
 export interface CompetitionResponse {
@@ -284,6 +289,10 @@ export interface RunReport {
     volumeMultiplier: number;
     nextVolumeThreshold: number | null;
     nextVolumeMultiplier: number | null;
+    volumeMaxMode?: boolean;
+    volumeTarget?: number | null;
+    expectedVolume?: number | null;
+    volumePaceRatio?: number | null;
   };
   decisions: MarketDecision[];
   actions: Array<{

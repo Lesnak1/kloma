@@ -1,11 +1,55 @@
 import { clamp } from "@/src/indicators";
 import type {
+  CompetitionRound,
   LeaderboardEntry,
   LeaderboardResponse,
   MarketSummary,
   PortfolioComponent,
   RiskMode,
 } from "@/src/types";
+
+export interface VolumePace {
+  targetVolume: number;
+  expectedVolume: number | null;
+  paceRatio: number | null;
+}
+
+function timestampMilliseconds(value: CompetitionRound["startsAt"]): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value > 10_000_000_000 ? value : value * 1000;
+  }
+  if (typeof value === "string") {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric > 10_000_000_000 ? numeric : numeric * 1000;
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+export function volumePaceForRound(
+  round: CompetitionRound,
+  currentVolume: number | null,
+  targetVolume: number,
+  nowMilliseconds = Date.now(),
+): VolumePace {
+  const safeTarget = Math.max(0, targetVolume);
+  const start = timestampMilliseconds(round.startsAt);
+  const end = timestampMilliseconds(round.endsAt);
+  if (start === null || end === null || end <= start || nowMilliseconds <= start) {
+    return { targetVolume: safeTarget, expectedVolume: 0, paceRatio: null };
+  }
+  const elapsed = clamp((nowMilliseconds - start) / (end - start), 0, 1);
+  const expectedVolume = safeTarget * elapsed;
+  if (expectedVolume < safeTarget * 0.01) {
+    return { targetVolume: safeTarget, expectedVolume, paceRatio: null };
+  }
+  return {
+    targetVolume: safeTarget,
+    expectedVolume,
+    paceRatio: Math.max(0, Number(currentVolume ?? 0)) / expectedVolume,
+  };
+}
 
 export interface Standing {
   rank: number | null;

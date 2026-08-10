@@ -1,1 +1,1 @@
-export const STRATEGY_VERSION = "compound-v4";
+export const STRATEGY_VERSION = "round1-volume-v5";

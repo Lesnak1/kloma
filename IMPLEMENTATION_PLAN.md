@@ -1,5 +1,16 @@
 # Yarışma implementation ve işletim planı
 
+## Round 1 Volumemaxxing — 10 Ağustos 2026
+
+- Resmî API Round 1'i `DRAFT`, başlangıcı `13 Ağustos 2026 05:00 Europe/Istanbul`, bitişi `18 Ağustos 2026 05:00 Europe/Istanbul` olarak döndürür. Başlangıç sermayesi her admitted hesap için `100.000 USDL`'dir.
+- Hedef çalışma seviyesi `20M USDL` gross volume (`4x` tier) olarak izlenir. `5M/10M/20M/30M` eşikleri için sırasıyla günlük `1M/2M/4M/6M` pace gerekir; pace açığı tek başına risk limiti kaldırmaz.
+- Round 1 aktifken Terafab zorunlu dahil edilir, fakat puan tüm listedeki LIVE marketlerden geldiği için bot Terafab'a kilitlenmez; en fazla 12 market tarar ve en fazla 10 emir değerlendirir.
+- Maker fee `0 bps` avantajı yalnızca non-crossing GTC emirlerle kullanılır. Taker hacmi, self-trade ve wash trading uygulanmaz.
+- Points quote baz büyüklüğü `%0,75`, market points envanter tavanı `%4`, yakın book katılımı `%20` ve quote TTL `90s` olur. Hedef pace'in gerisinde kalındığında en fazla `1,15x` catch-up uygulanır; ancak drawdown `%1,5` veya points drawdown freni üzerindeyse bu boost kapalıdır.
+- Genel stratejinin ilk `%35` için uyguladığı `preserve` küçültmesi, volume-max modunda `balanced` tabanına yükseltilir; liderken maker hacmi gereksiz yavaşlatılmaz. Hard exposure ve drawdown limitleri aynen kalır.
+- `HOLD_DURING_DRAFT_ROUND=true` ile tur başlamadan yeni quote açılmaz; mevcut açık emirler iptal edilerek reset öncesi sermaye korunur. Round aktif olduğunda admission kontrolü zorunludur.
+- API'nin 10 Ağustos durumunda queue position `5.922`, Round 1 batch size `500` olduğundan admission kesinleşmeden trade hacmi üretilemez.
+
 ## Compound-v4 ölçekleme kararı — 9 Ağustos 2026
 
 - Canlı hesap `100.000` başlangıçtan `129.608,29 USDL` equity'ye ulaştı. Boyutlandırma bu equity artışını kullanır, fakat `150.000 USDL` sizing equity'de tavanlanır.

@@ -9,20 +9,77 @@ import {
   explicitMarketMultiplier,
   portfolioDrawdownPct,
   portfolioGrossExposure,
+  volumePaceForRound,
   volumeMultiplierForStanding,
 } from "@/src/risk";
 import { decideMarket } from "@/src/strategy";
 import type {
   ActiveOrder,
+  CompetitionRound,
   DesiredOrder,
+  FeaturedRound,
   MarketDecision,
   MarketSummary,
   Position,
+  RiskMode,
   RunReport,
 } from "@/src/types";
 
 function isActiveStatus(value: unknown): boolean {
   return typeof value === "string" && value.toUpperCase() === "ACTIVE";
+}
+
+function isDraftStatus(value: unknown): boolean {
+  return typeof value === "string" && ["DRAFT", "UPCOMING", "SCHEDULED"].includes(value.toUpperCase());
+}
+
+function draftRound(competition: { rounds: CompetitionRound[]; featuredRound: FeaturedRound | null }): CompetitionRound | null {
+  return (competition.featuredRound && isDraftStatus(competition.featuredRound.status)
+    ? competition.featuredRound
+    : competition.rounds.find((round) => isDraftStatus(round.status))) ?? null;
+}
+
+export function isVolumeMaxRound(round: CompetitionRound | null, config: BotConfig): boolean {
+  return Boolean(
+    round &&
+    config.volumeMaxMode &&
+    round.roundNumber === config.volumeMaxRoundNumber &&
+    /volume/i.test(round.name ?? ""),
+  );
+}
+
+function featuredToken(round: FeaturedRound | null): string | undefined {
+  const token = round?.newAssetProperty?.tokenName?.trim().toLowerCase();
+  return token || undefined;
+}
+
+export function volumeMaxRiskMode(riskMode: RiskMode, enabled: boolean): RiskMode {
+  return enabled && riskMode === "preserve" ? "balanced" : riskMode;
+}
+
+function volumeMaxStrategyConfig(
+  config: BotConfig,
+  enabled: boolean,
+  paceRatio: number | null,
+  drawdownPct: number,
+): BotConfig {
+  if (!enabled) return config;
+  const belowPace = paceRatio !== null && paceRatio < 0.85;
+  const capitalHealthy = drawdownPct < Math.min(config.pointsDrawdownStopPct, 1.5);
+  const catchupScale = belowPace && capitalHealthy ? config.volumeMaxCatchupScale : 1;
+  return {
+    ...config,
+    pointsOrderNotionalPct: Math.min(
+      5,
+      Math.max(config.pointsOrderNotionalPct, config.volumeMaxPointsOrderNotionalPct) * catchupScale,
+    ),
+    pointsMaxMarketExposurePct: Math.min(
+      config.maxMarketExposurePct,
+      Math.max(config.pointsMaxMarketExposurePct, config.volumeMaxPointsMaxMarketExposurePct),
+    ),
+    maxBookParticipationPct: Math.max(config.maxBookParticipationPct, config.volumeMaxBookParticipationPct),
+    quoteTtlSeconds: Math.min(config.quoteTtlSeconds, config.volumeMaxQuoteTtlSeconds),
+  };
 }
 
 export function isTerminalRoundStatus(value: unknown): boolean {
@@ -91,6 +148,8 @@ export class TradingEngine {
       (competition.featuredRound && isActiveStatus(competition.featuredRound.status)
         ? competition.featuredRound
         : competition.rounds.find((round) => isActiveStatus(round.status))) ?? null;
+    const upcomingDraftRound = draftRound(competition);
+    const volumeMaxActive = isVolumeMaxRound(activeRound, this.config);
 
     if (this.config.killSwitch) {
       if (this.config.tradingEnabled) {
@@ -118,8 +177,14 @@ export class TradingEngine {
       };
     }
 
-    if (!activeRound && !this.config.allowOutsideCompetition) {
-      actions.push({ action: "skip", result: "no active competition round" });
+    const holdForDraftRound = !activeRound && Boolean(upcomingDraftRound) && this.config.holdDuringDraftRound;
+    if ((!activeRound && !this.config.allowOutsideCompetition) || holdForDraftRound) {
+      actions.push({
+        action: "skip",
+        result: holdForDraftRound
+          ? `round ${upcomingDraftRound!.roundNumber} is ${upcomingDraftRound!.status}; preserving capital until start`
+          : "no active competition round",
+      });
       const targetRound = this.config.stopAfterRoundNumber
         ? [competition.featuredRound, ...competition.rounds].find(
             (round) =>
@@ -189,7 +254,12 @@ export class TradingEngine {
         fees,
         decisions,
         actions,
-        warnings: ["ALLOW_OUTSIDE_COMPETITION=false; no new orders were evaluated or sent.", ...warnings],
+        warnings: [
+          holdForDraftRound
+            ? "HOLD_DURING_DRAFT_ROUND=true; no new orders were evaluated or sent before the reset."
+            : "ALLOW_OUTSIDE_COMPETITION=false; no new orders were evaluated or sent.",
+          ...warnings,
+        ],
         durationMs: Date.now() - startedAt,
       };
     }
@@ -244,6 +314,16 @@ export class TradingEngine {
     });
     const tiers = standingTiers(leaderboard?.volumeMultiplierTiers, competition.featuredRound?.volumeMultiplierTiers);
     const volumeMultiplier = volumeMultiplierForStanding(tiers, standing.volume);
+    const volumePace = volumeMaxActive
+      ? volumePaceForRound(activeRound!, standing.volume, this.config.volumeMaxTargetVolume)
+      : null;
+    const strategyConfig = volumeMaxStrategyConfig(
+      this.config,
+      volumeMaxActive,
+      volumePace?.paceRatio ?? null,
+      drawdownPct,
+    );
+    const strategyRiskMode = volumeMaxRiskMode(standing.riskMode, volumeMaxActive);
 
     if (drawdownPct >= this.config.maxDrawdownPct) {
       if (this.config.tradingEnabled) {
@@ -276,6 +356,14 @@ export class TradingEngine {
           volumeMultiplier: volumeMultiplier.currentMultiplier,
           nextVolumeThreshold: volumeMultiplier.nextThreshold,
           nextVolumeMultiplier: volumeMultiplier.nextMultiplier,
+          ...(volumePace
+            ? {
+                volumeMaxMode: true,
+                volumeTarget: volumePace.targetVolume,
+                expectedVolume: volumePace.expectedVolume,
+                volumePaceRatio: volumePace.paceRatio,
+              }
+            : {}),
         },
         decisions,
         actions,
@@ -287,8 +375,12 @@ export class TradingEngine {
     const positions = positionMap(portfolio.positions);
     const live = marketList.properties.filter((market) => market.status === "LIVE");
     const explicitCompetitionMarkets = activeRound ? live.filter((market) => market.isCompetition === true) : [];
-    let eligible = explicitCompetitionMarkets.length > 0 ? explicitCompetitionMarkets : live;
-    if (this.config.targetTokens.length > 0) {
+    let eligible = volumeMaxActive
+      ? live
+      : explicitCompetitionMarkets.length > 0
+        ? explicitCompetitionMarkets
+        : live;
+    if (this.config.targetTokens.length > 0 && !volumeMaxActive) {
       const allowlist = new Set(this.config.targetTokens);
       eligible = eligible.filter((market) => allowlist.has(market.tokenName.toLowerCase()));
     }
@@ -303,11 +395,17 @@ export class TradingEngine {
           marketScore(right, explicitMarketMultiplier(tiers, right)) -
           marketScore(left, explicitMarketMultiplier(tiers, left)),
       );
+    const featuredMarket = volumeMaxActive
+      ? eligibleByToken.get(featuredToken(competition.featuredRound) ?? "")
+      : undefined;
+    const selectionLimit = volumeMaxActive
+      ? this.config.volumeMaxMarketsPerTick
+      : this.config.maxMarketsPerTick;
     const selected: MarketSummary[] = [];
-    for (const market of [...positionedMarkets, ...ranked]) {
+    for (const market of [...(featuredMarket ? [featuredMarket] : []), ...positionedMarkets, ...ranked]) {
       if (selected.some((item) => item.propertyId === market.propertyId)) continue;
       selected.push(market);
-      if (selected.length >= this.config.maxMarketsPerTick) break;
+      if (selected.length >= selectionLimit) break;
     }
 
     const marketSnapshots = await Promise.all(
@@ -337,7 +435,7 @@ export class TradingEngine {
       }
       decisions.push(
         decideMarket({
-          config: this.config,
+          config: strategyConfig,
           market: snapshot.market,
           detail: snapshot.detail,
           candles: snapshot.candles,
@@ -349,7 +447,7 @@ export class TradingEngine {
           drawdownPct,
           makerFeeBps: Number(portfolio.applicableFees?.makerFeeBps ?? competition.makerFeeBps ?? 0),
           takerFeeBps: Number(portfolio.applicableFees?.takerFeeBps ?? competition.takerFeeBps ?? 0),
-          riskMode: standing.riskMode,
+          riskMode: strategyRiskMode,
           multiplier: Math.max(
             volumeMultiplier.currentMultiplier,
             explicitMarketMultiplier(tiers, snapshot.market),
@@ -359,7 +457,14 @@ export class TradingEngine {
       );
     }
 
-    await this.reconcile(activeOrders, decisions, actions, warnings);
+    await this.reconcile(
+      activeOrders,
+      decisions,
+      actions,
+      warnings,
+      strategyConfig,
+      volumeMaxActive ? this.config.volumeMaxOrdersPerTick : this.config.maxOrdersPerTick,
+    );
 
     return {
       runId,
@@ -387,6 +492,14 @@ export class TradingEngine {
         volumeMultiplier: volumeMultiplier.currentMultiplier,
         nextVolumeThreshold: volumeMultiplier.nextThreshold,
         nextVolumeMultiplier: volumeMultiplier.nextMultiplier,
+        ...(volumePace
+          ? {
+              volumeMaxMode: true,
+              volumeTarget: volumePace.targetVolume,
+              expectedVolume: volumePace.expectedVolume,
+              volumePaceRatio: volumePace.paceRatio,
+            }
+          : {}),
       },
       decisions,
       actions,
@@ -400,6 +513,8 @@ export class TradingEngine {
     decisions: MarketDecision[],
     actions: RunReport["actions"],
     warnings: string[],
+    executionConfig: BotConfig,
+    maxOrdersPerTick: number,
   ): Promise<void> {
     const desired = decisions
       .flatMap((decision) => decision.desiredOrders)
@@ -424,9 +539,9 @@ export class TradingEngine {
         (item) =>
           item.propertyId === order.propertyId &&
           item.side === order.side &&
-          priceDifferenceBps(item.price, order.price!) <= this.config.repriceThresholdBps,
+          priceDifferenceBps(item.price, order.price!) <= executionConfig.repriceThresholdBps,
       );
-      const fresh = orderAgeSeconds(order, nowSeconds) <= this.config.quoteTtlSeconds;
+      const fresh = orderAgeSeconds(order, nowSeconds) <= executionConfig.quoteTtlSeconds;
       const key = `${order.propertyId}:${order.side}`;
       if (candidate && fresh && !coveredKeys.has(key)) {
         keep.add(id);
@@ -443,7 +558,7 @@ export class TradingEngine {
     for (const order of cancel.slice(0, 20)) {
       const id = orderId(order);
       if (!id) continue;
-      if (!this.config.tradingEnabled) {
+      if (!executionConfig.tradingEnabled) {
         actions.push({
           action: "cancel",
           tokenName: order.tokenName,
@@ -471,7 +586,7 @@ export class TradingEngine {
 
     let placed = 0;
     for (const order of desired) {
-      if (placed >= this.config.maxOrdersPerTick) break;
+      if (placed >= maxOrdersPerTick) break;
       if (blockedProperties.has(order.propertyId)) {
         actions.push({
           action: "skip",
@@ -491,7 +606,7 @@ export class TradingEngine {
           active.propertyId === order.propertyId &&
           active.side === order.side &&
           active.price !== null &&
-          priceDifferenceBps(active.price, order.price) <= this.config.repriceThresholdBps
+          priceDifferenceBps(active.price, order.price) <= executionConfig.repriceThresholdBps
         );
       });
       if (alreadyCovered) {
@@ -505,7 +620,7 @@ export class TradingEngine {
         });
         continue;
       }
-      if (!this.config.tradingEnabled) {
+      if (!executionConfig.tradingEnabled) {
         actions.push({
           action: "place",
           tokenName: order.tokenName,

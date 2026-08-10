@@ -76,10 +76,26 @@ test("telemetry retention is capped for free-tier durable storage", () => {
     COMPOUNDING_PROFIT_REINVEST_PCT: undefined,
     COMPOUNDING_MAX_EQUITY_MULTIPLIER: undefined,
     QUALITY_SIZE_BOOST_MAX: undefined,
+    HOLD_DURING_DRAFT_ROUND: undefined,
+    VOLUME_MAX_MODE: undefined,
+    VOLUME_MAX_ROUND_NUMBER: undefined,
+    VOLUME_MAX_TARGET_VOLUME: undefined,
+    VOLUME_MAX_CATCHUP_SCALE: undefined,
+    VOLUME_MAX_MARKETS_PER_TICK: undefined,
+    VOLUME_MAX_ORDERS_PER_TICK: undefined,
+    VOLUME_MAX_POINTS_ORDER_NOTIONAL_PCT: undefined,
+    VOLUME_MAX_POINTS_MAX_MARKET_EXPOSURE_PCT: undefined,
+    VOLUME_MAX_BOOK_PARTICIPATION_PCT: undefined,
+    VOLUME_MAX_QUOTE_TTL_SECONDS: undefined,
   }, () => {
     const config = loadConfig();
     assert.equal(config.telemetryMaxRuns, 2_000);
     assert.equal(config.pointsOrderNotionalPct, 0.6);
     assert.equal(config.compoundingEnabled, true);
+    assert.equal(config.holdDuringDraftRound, true);
+    assert.equal(config.volumeMaxMode, true);
+    assert.equal(config.volumeMaxMarketsPerTick, 12);
+    assert.equal(config.volumeMaxOrdersPerTick, 10);
+    assert.equal(config.volumeMaxPointsOrderNotionalPct, 0.75);
   });
 });

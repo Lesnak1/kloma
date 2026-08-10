@@ -4,6 +4,7 @@ export interface BotConfig {
   cronSecret: string;
   tradingEnabled: boolean;
   allowOutsideCompetition: boolean;
+  holdDuringDraftRound: boolean;
   killSwitch: boolean;
   handle?: string;
   walletAddress?: string;
@@ -23,6 +24,16 @@ export interface BotConfig {
   pointsMaxMarketExposurePct: number;
   pointsDrawdownStopPct: number;
   pointsMaxRoundTripCostBps: number;
+  volumeMaxMode: boolean;
+  volumeMaxRoundNumber: number;
+  volumeMaxTargetVolume: number;
+  volumeMaxCatchupScale: number;
+  volumeMaxMarketsPerTick: number;
+  volumeMaxOrdersPerTick: number;
+  volumeMaxPointsOrderNotionalPct: number;
+  volumeMaxPointsMaxMarketExposurePct: number;
+  volumeMaxBookParticipationPct: number;
+  volumeMaxQuoteTtlSeconds: number;
   stopLossPct: number;
   minStopLossPct: number;
   minTakeProfitPct: number;
@@ -164,6 +175,7 @@ export function loadConfig(options: { requireApiKey?: boolean } = {}): BotConfig
     cronSecret,
     tradingEnabled,
     allowOutsideCompetition: bool("ALLOW_OUTSIDE_COMPETITION", false),
+    holdDuringDraftRound: bool("HOLD_DURING_DRAFT_ROUND", true),
     killSwitch: bool("KILL_SWITCH", false),
     handle,
     walletAddress,
@@ -186,6 +198,16 @@ export function loadConfig(options: { requireApiKey?: boolean } = {}): BotConfig
     pointsMaxMarketExposurePct,
     pointsDrawdownStopPct,
     pointsMaxRoundTripCostBps: numberInRange("POINTS_MAX_ROUND_TRIP_COST_BPS", 90, 0, 200),
+    volumeMaxMode: bool("VOLUME_MAX_MODE", true),
+    volumeMaxRoundNumber: Math.floor(numberInRange("VOLUME_MAX_ROUND_NUMBER", 1, 1, 100)),
+    volumeMaxTargetVolume: numberInRange("VOLUME_MAX_TARGET_VOLUME", 20_000_000, 1_000_000, 30_000_000),
+    volumeMaxCatchupScale: numberInRange("VOLUME_MAX_CATCHUP_SCALE", 1.15, 1, 1.5),
+    volumeMaxMarketsPerTick: Math.floor(numberInRange("VOLUME_MAX_MARKETS_PER_TICK", 12, 1, 20)),
+    volumeMaxOrdersPerTick: Math.floor(numberInRange("VOLUME_MAX_ORDERS_PER_TICK", 10, 1, 20)),
+    volumeMaxPointsOrderNotionalPct: numberInRange("VOLUME_MAX_POINTS_ORDER_NOTIONAL_PCT", 0.75, 0.05, 5),
+    volumeMaxPointsMaxMarketExposurePct: numberInRange("VOLUME_MAX_POINTS_MAX_MARKET_EXPOSURE_PCT", 4, 0.25, 20),
+    volumeMaxBookParticipationPct: numberInRange("VOLUME_MAX_BOOK_PARTICIPATION_PCT", 20, 1, 100),
+    volumeMaxQuoteTtlSeconds: Math.floor(numberInRange("VOLUME_MAX_QUOTE_TTL_SECONDS", 90, 30, 3600)),
     stopLossPct,
     minStopLossPct,
     minTakeProfitPct,

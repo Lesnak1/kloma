@@ -1,5 +1,15 @@
 # Expert test raporu
 
+## 10 Ağustos 2026 — Round 1 volume-max hazırlığı (en güncel)
+
+- Resmî competition API: Round 1 `Volumemaxxing`, `DRAFT`, 13 Ağustos 05:00–18 Ağustos 05:00 (Europe/Istanbul), maker `0 bps`, taker `10 bps`, Terafab (`TERA`) featured asset, `5M/10M/20M/30M` volume eşiklerinde `2x/3x/4x/5x` multiplier.
+- Production account queue position `5.922`; Round 1 participant batch size `500`. Admission aktif turdaki API sonucu ile fail-closed doğrulanacaktır.
+- `round1-volume-v5` aktif roundda Terafab'ı force-include eder ve tüm LIVE marketleri volume için tarar; eski yalnızca `isCompetition=true` filtresi kaldırılır.
+- Draft turda açık quote cleanup ve yeni emir halt uygulanır. Round başladıktan sonra maker-only points dönüşü, `20M` target pace telemetry'si ve capital-healthy catch-up scale devreye girer.
+- Leaderboard'da üst dilime çıkıldığında volume-max strateji `preserve` size reduction uygulamaz; minimum `balanced` maker boyutunu korur.
+- `52/52` otomatik test geçti; satır coverage `%92,88`, branch coverage `%79,15`, function coverage `%90,24`. TypeScript kontrolü ve optimize Next.js production build başarılı.
+- Yeni testler: draft-capital hold, all-LIVE + featured selection ve volume pace hesaplaması.
+
 ## 9 Ağustos 2026 — compound-v4 canlı audit (en güncel)
 
 ### Ölçülen production sonucu
