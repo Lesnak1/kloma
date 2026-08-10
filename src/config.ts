@@ -27,6 +27,10 @@ export interface BotConfig {
   volumeMaxMode: boolean;
   volumeMaxRoundNumber: number;
   volumeMaxTargetVolume: number;
+  volumeRankChasingEnabled: boolean;
+  volumeRankChasingMarginPct: number;
+  volumeRankChasingMinElapsedPct: number;
+  volumeRankChasingMaxTargetVolume: number;
   volumeMaxCatchupScale: number;
   volumeMaxMarketsPerTick: number;
   volumeMaxOrdersPerTick: number;
@@ -200,8 +204,12 @@ export function loadConfig(options: { requireApiKey?: boolean } = {}): BotConfig
     pointsMaxRoundTripCostBps: numberInRange("POINTS_MAX_ROUND_TRIP_COST_BPS", 90, 0, 200),
     volumeMaxMode: bool("VOLUME_MAX_MODE", true),
     volumeMaxRoundNumber: Math.floor(numberInRange("VOLUME_MAX_ROUND_NUMBER", 1, 1, 100)),
-    volumeMaxTargetVolume: numberInRange("VOLUME_MAX_TARGET_VOLUME", 20_000_000, 1_000_000, 30_000_000),
-    volumeMaxCatchupScale: numberInRange("VOLUME_MAX_CATCHUP_SCALE", 1.15, 1, 1.5),
+    volumeMaxTargetVolume: numberInRange("VOLUME_MAX_TARGET_VOLUME", 30_000_000, 1_000_000, 1_000_000_000),
+    volumeRankChasingEnabled: bool("VOLUME_RANK_CHASING_ENABLED", true),
+    volumeRankChasingMarginPct: numberInRange("VOLUME_RANK_CHASING_MARGIN_PCT", 12, 0, 100),
+    volumeRankChasingMinElapsedPct: numberInRange("VOLUME_RANK_CHASING_MIN_ELAPSED_PCT", 2, 0.1, 25),
+    volumeRankChasingMaxTargetVolume: numberInRange("VOLUME_RANK_CHASING_MAX_TARGET_VOLUME", 1_000_000_000, 1_000_000, 1_000_000_000),
+    volumeMaxCatchupScale: numberInRange("VOLUME_MAX_CATCHUP_SCALE", 1.25, 1, 1.5),
     volumeMaxMarketsPerTick: Math.floor(numberInRange("VOLUME_MAX_MARKETS_PER_TICK", 12, 1, 20)),
     volumeMaxOrdersPerTick: Math.floor(numberInRange("VOLUME_MAX_ORDERS_PER_TICK", 10, 1, 20)),
     volumeMaxPointsOrderNotionalPct: numberInRange("VOLUME_MAX_POINTS_ORDER_NOTIONAL_PCT", 0.75, 0.05, 5),

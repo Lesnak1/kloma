@@ -14,6 +14,16 @@ export interface VolumePace {
   paceRatio: number | null;
 }
 
+export interface RankChaseTarget {
+  baselineTargetVolume: number;
+  targetVolume: number;
+  thirdPlaceVolume: number | null;
+  thirdPlacePoints: number | null;
+  thirdPlaceProjectedVolume: number | null;
+  thirdPlaceProjectedPoints: number | null;
+  leaderboardProjectionActive: boolean;
+}
+
 function timestampMilliseconds(value: CompetitionRound["startsAt"]): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value > 10_000_000_000 ? value : value * 1000;
@@ -27,6 +37,13 @@ function timestampMilliseconds(value: CompetitionRound["startsAt"]): number | nu
   return null;
 }
 
+function elapsedRoundFraction(round: CompetitionRound, nowMilliseconds: number): number | null {
+  const start = timestampMilliseconds(round.startsAt);
+  const end = timestampMilliseconds(round.endsAt);
+  if (start === null || end === null || end <= start || nowMilliseconds <= start) return null;
+  return clamp((nowMilliseconds - start) / (end - start), 0, 1);
+}
+
 export function volumePaceForRound(
   round: CompetitionRound,
   currentVolume: number | null,
@@ -34,12 +51,10 @@ export function volumePaceForRound(
   nowMilliseconds = Date.now(),
 ): VolumePace {
   const safeTarget = Math.max(0, targetVolume);
-  const start = timestampMilliseconds(round.startsAt);
-  const end = timestampMilliseconds(round.endsAt);
-  if (start === null || end === null || end <= start || nowMilliseconds <= start) {
+  const elapsed = elapsedRoundFraction(round, nowMilliseconds);
+  if (elapsed === null) {
     return { targetVolume: safeTarget, expectedVolume: 0, paceRatio: null };
   }
-  const elapsed = clamp((nowMilliseconds - start) / (end - start), 0, 1);
   const expectedVolume = safeTarget * elapsed;
   if (expectedVolume < safeTarget * 0.01) {
     return { targetVolume: safeTarget, expectedVolume, paceRatio: null };
@@ -48,6 +63,52 @@ export function volumePaceForRound(
     targetVolume: safeTarget,
     expectedVolume,
     paceRatio: Math.max(0, Number(currentVolume ?? 0)) / expectedVolume,
+  };
+}
+
+export function rankChaseTargetForRound(
+  round: CompetitionRound,
+  leaderboard: LeaderboardResponse | null,
+  options: {
+    baselineTargetVolume: number;
+    enabled: boolean;
+    safetyMarginPct: number;
+    minElapsedPct: number;
+    maxTargetVolume: number;
+  },
+  nowMilliseconds = Date.now(),
+): RankChaseTarget {
+  const baselineTargetVolume = Math.max(0, Number(options.baselineTargetVolume) || 0);
+  const maximumTargetVolume = Math.max(baselineTargetVolume, Number(options.maxTargetVolume) || baselineTargetVolume);
+  const rankedEntries = [...(leaderboard?.entries ?? [])]
+    .filter((entry) => Number.isFinite(Number(entry.rank)) && Number(entry.rank) > 0)
+    .sort((left, right) => Number(left.rank) - Number(right.rank));
+  const third = rankedEntries.find((entry) => Number(entry.rank) === 3) ?? rankedEntries[2];
+  const thirdPlaceVolume = third && Number.isFinite(Number(third.volume)) ? Math.max(0, Number(third.volume)) : null;
+  const thirdPlacePoints = third && Number.isFinite(Number(third.points)) ? Math.max(0, Number(third.points)) : null;
+  const elapsed = elapsedRoundFraction(round, nowMilliseconds);
+  const minimumElapsed = clamp(Number(options.minElapsedPct) / 100, 0, 1);
+  const canProject = Boolean(
+    options.enabled &&
+    elapsed !== null &&
+    elapsed >= minimumElapsed &&
+    thirdPlaceVolume !== null,
+  );
+  const thirdPlaceProjectedVolume = canProject ? thirdPlaceVolume! / elapsed! : null;
+  const thirdPlaceProjectedPoints = canProject && thirdPlacePoints !== null ? thirdPlacePoints / elapsed! : null;
+  const safetyMultiplier = 1 + clamp(Number(options.safetyMarginPct) / 100, 0, 1);
+  const targetVolume = canProject
+    ? Math.min(maximumTargetVolume, Math.max(baselineTargetVolume, thirdPlaceProjectedVolume! * safetyMultiplier))
+    : baselineTargetVolume;
+
+  return {
+    baselineTargetVolume,
+    targetVolume,
+    thirdPlaceVolume,
+    thirdPlacePoints,
+    thirdPlaceProjectedVolume,
+    thirdPlaceProjectedPoints,
+    leaderboardProjectionActive: canProject,
   };
 }
 

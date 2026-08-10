@@ -178,9 +178,12 @@ Tam liste [.env.example](./.env.example) içindedir.
 | `POINTS_DRAWDOWN_STOP_PCT` | `2` | Bu drawdown seviyesinde yeni points envanteri durur |
 | `POINTS_MAX_ROUND_TRIP_COST_BPS` | `90` | Points döngüsünün ham tahmini maliyet bütçesi; rank modu bunu preserve/balanced/defend için aşağı ölçekler |
 | `VOLUME_MAX_MODE` | `true` | Round 1 Volumemaxxing aktifken volume-specific maker stratejisini açar |
-| `VOLUME_MAX_TARGET_VOLUME` | `20000000` | Round içi telemetry pace hedefi; hard risk limitini yükseltmez |
+| `VOLUME_MAX_TARGET_VOLUME` | `30000000` | Round 1 için 5× tier baseline pace floor; hard limit veya volume cap değildir |
+| `VOLUME_RANK_CHASING_ENABLED` | `true` | Yeterli leaderboard verisi oluşunca P3’ün projected final raw volume’üne güvenlik marjı ekleyerek pace hedefini otomatik yükseltir |
+| `VOLUME_RANK_CHASING_MARGIN_PCT` / `VOLUME_RANK_CHASING_MIN_ELAPSED_PCT` | `12` / `2` | P3 final-volume tahminine eklenen marj ve tahmin başlatma eşiği |
+| `VOLUME_RANK_CHASING_MAX_TARGET_VOLUME` | `1000000000` | Sadece bozuk/anormal leaderboard verisine karşı telemetry tavanı; bot için hedef değildir |
 | `VOLUME_MAX_MARKETS_PER_TICK` / `VOLUME_MAX_ORDERS_PER_TICK` | `12` / `10` | Round 1'de tüm LIVE market + Terafab tarama ve emir değerlendirme tavanı |
-| `VOLUME_MAX_POINTS_ORDER_NOTIONAL_PCT` | `0.75` | Round 1 points quote baz büyüklüğü; pace gerisinde en fazla 1.15× artar |
+| `VOLUME_MAX_POINTS_ORDER_NOTIONAL_PCT` | `0.75` | Round 1 points quote baz büyüklüğü; pace gerisinde en fazla 1.25× artar |
 | `VOLUME_MAX_POINTS_MAX_MARKET_EXPOSURE_PCT` | `4` | Round 1 points market başına envanter tavanı |
 | `VOLUME_MAX_BOOK_PARTICIPATION_PCT` / `VOLUME_MAX_QUOTE_TTL_SECONDS` | `20` / `90` | Round 1 pasif book katılımı ve quote yenileme yaşı |
 | `MAX_MARKETS_PER_TICK` | `10` | Her heartbeat’te ayrıntılı taranacak LIVE market sayısı |

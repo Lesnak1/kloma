@@ -291,8 +291,14 @@ export interface RunReport {
     nextVolumeMultiplier: number | null;
     volumeMaxMode?: boolean;
     volumeTarget?: number | null;
+    volumeBaselineTarget?: number | null;
     expectedVolume?: number | null;
     volumePaceRatio?: number | null;
+    rankChasingActive?: boolean;
+    thirdPlaceVolume?: number | null;
+    thirdPlacePoints?: number | null;
+    thirdPlaceProjectedVolume?: number | null;
+    thirdPlaceProjectedPoints?: number | null;
   };
   decisions: MarketDecision[];
   actions: Array<{

@@ -80,6 +80,10 @@ test("telemetry retention is capped for free-tier durable storage", () => {
     VOLUME_MAX_MODE: undefined,
     VOLUME_MAX_ROUND_NUMBER: undefined,
     VOLUME_MAX_TARGET_VOLUME: undefined,
+    VOLUME_RANK_CHASING_ENABLED: undefined,
+    VOLUME_RANK_CHASING_MARGIN_PCT: undefined,
+    VOLUME_RANK_CHASING_MIN_ELAPSED_PCT: undefined,
+    VOLUME_RANK_CHASING_MAX_TARGET_VOLUME: undefined,
     VOLUME_MAX_CATCHUP_SCALE: undefined,
     VOLUME_MAX_MARKETS_PER_TICK: undefined,
     VOLUME_MAX_ORDERS_PER_TICK: undefined,
@@ -94,8 +98,12 @@ test("telemetry retention is capped for free-tier durable storage", () => {
     assert.equal(config.compoundingEnabled, true);
     assert.equal(config.holdDuringDraftRound, true);
     assert.equal(config.volumeMaxMode, true);
+    assert.equal(config.volumeMaxTargetVolume, 30_000_000);
+    assert.equal(config.volumeRankChasingEnabled, true);
+    assert.equal(config.volumeRankChasingMarginPct, 12);
     assert.equal(config.volumeMaxMarketsPerTick, 12);
     assert.equal(config.volumeMaxOrdersPerTick, 10);
     assert.equal(config.volumeMaxPointsOrderNotionalPct, 0.75);
+    assert.equal(config.volumeMaxCatchupScale, 1.25);
   });
 });

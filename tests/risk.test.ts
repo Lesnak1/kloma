@@ -4,6 +4,7 @@ import {
   assessStanding,
   explicitMarketMultiplier,
   portfolioDrawdownPct,
+  rankChaseTargetForRound,
   volumePaceForRound,
   volumeMultiplierForStanding,
 } from "@/src/risk";
@@ -69,4 +70,79 @@ test("round volume pace exposes catch-up target without inventing an early ratio
   const pace = volumePaceForRound(round, 4_000_000, 20_000_000, 1_500_000);
   assert.equal(pace.expectedVolume, 10_000_000);
   assert.equal(pace.paceRatio, 0.4);
+});
+
+test("rank chasing projects third place with a margin after enough of the round has elapsed", () => {
+  const round = { roundNumber: 1, startsAt: 1_000, endsAt: 11_000, status: "ACTIVE" };
+  const target = rankChaseTargetForRound(
+    round,
+    {
+      roundNumber: 1,
+      entries: [
+        { rank: 1, handle: "one", walletAddress: "0x1", points: 10_000_000, volume: 9_000_000, pnl: 0 },
+        { rank: 2, handle: "two", walletAddress: "0x2", points: 9_000_000, volume: 8_000_000, pnl: 0 },
+        { rank: 3, handle: "three", walletAddress: "0x3", points: 8_000_000, volume: 7_000_000, pnl: 0 },
+      ],
+    },
+    {
+      baselineTargetVolume: 30_000_000,
+      enabled: true,
+      safetyMarginPct: 12,
+      minElapsedPct: 2,
+      maxTargetVolume: 1_000_000_000,
+    },
+    6_000_000,
+  );
+  assert.equal(target.leaderboardProjectionActive, true);
+  assert.equal(target.thirdPlaceVolume, 7_000_000);
+  assert.equal(target.thirdPlacePoints, 8_000_000);
+  assert.equal(target.thirdPlaceProjectedVolume, 14_000_000);
+  assert.equal(target.targetVolume, 30_000_000);
+  assert.equal(target.thirdPlaceProjectedPoints, 16_000_000);
+});
+
+test("rank chasing raises the pace goal above the tier floor and caps malformed projections", () => {
+  const round = { roundNumber: 1, startsAt: 1_000, endsAt: 11_000, status: "ACTIVE" };
+  const leaderboard = {
+    roundNumber: 1,
+    entries: [
+      { rank: 1, handle: "one", walletAddress: "0x1", points: 1, volume: 100_000_000, pnl: 0 },
+      { rank: 2, handle: "two", walletAddress: "0x2", points: 1, volume: 95_000_000, pnl: 0 },
+      { rank: 3, handle: "three", walletAddress: "0x3", points: 1, volume: 90_000_000, pnl: 0 },
+    ],
+  };
+  const raised = rankChaseTargetForRound(round, leaderboard, {
+    baselineTargetVolume: 30_000_000,
+    enabled: true,
+    safetyMarginPct: 12,
+    minElapsedPct: 2,
+    maxTargetVolume: 1_000_000_000,
+  }, 6_000_000);
+  assert.ok(Math.abs(raised.targetVolume - 201_600_000) < 0.01);
+
+  const capped = rankChaseTargetForRound(round, leaderboard, {
+    baselineTargetVolume: 30_000_000,
+    enabled: true,
+    safetyMarginPct: 12,
+    minElapsedPct: 2,
+    maxTargetVolume: 100_000_000,
+  }, 1_300_000);
+  assert.equal(capped.targetVolume, 100_000_000);
+});
+
+test("rank chasing remains at the baseline before enough data exists", () => {
+  const target = rankChaseTargetForRound(
+    { roundNumber: 1, startsAt: 1_000, endsAt: 11_000, status: "ACTIVE" },
+    { roundNumber: 1, entries: [{ rank: 3, handle: "three", walletAddress: "0x3", points: 1, volume: 90_000_000, pnl: 0 }] },
+    {
+      baselineTargetVolume: 30_000_000,
+      enabled: true,
+      safetyMarginPct: 12,
+      minElapsedPct: 2,
+      maxTargetVolume: 1_000_000_000,
+    },
+    1_100_000,
+  );
+  assert.equal(target.leaderboardProjectionActive, false);
+  assert.equal(target.targetVolume, 30_000_000);
 });

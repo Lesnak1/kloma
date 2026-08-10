@@ -2,11 +2,12 @@
 
 ## Round 1 Volumemaxxing — 10 Ağustos 2026
 
+- Rank-chasing controller: Leaderboard aktif turla aynı round numarasını taşıdığında P3 raw volume ve points değerlerini okur. Round’un en az `%2`si geçtikten sonra P3 volume hızını final değere projekte eder; botun pace tabanı `max(30M, P3 projection × 1,12)` olur. Farklı/stale leaderboard verisi fail-closed olarak yok sayılır.
 - Resmî API Round 1'i `DRAFT`, başlangıcı `13 Ağustos 2026 05:00 Europe/Istanbul`, bitişi `18 Ağustos 2026 05:00 Europe/Istanbul` olarak döndürür. Başlangıç sermayesi her admitted hesap için `100.000 USDL`'dir.
-- Hedef çalışma seviyesi `20M USDL` gross volume (`4x` tier) olarak izlenir. `5M/10M/20M/30M` eşikleri için sırasıyla günlük `1M/2M/4M/6M` pace gerekir; pace açığı tek başına risk limiti kaldırmaz.
+- `30M USDL` sadece 5× tier için baseline pace floor’dur; volume cap değildir. Leaderboard oluştuğunda bot P3’ün round başından itibaren projected final raw volume’üne `%12` marj uygular ve daha yüksek olan hedefi izler. Bozuk veri için `1B` telemetry tavanı vardır; bu bir trade hedefi değildir.
 - Round 1 aktifken Terafab zorunlu dahil edilir, fakat puan tüm listedeki LIVE marketlerden geldiği için bot Terafab'a kilitlenmez; en fazla 12 market tarar ve en fazla 10 emir değerlendirir.
 - Maker fee `0 bps` avantajı yalnızca non-crossing GTC emirlerle kullanılır. Taker hacmi, self-trade ve wash trading uygulanmaz.
-- Points quote baz büyüklüğü `%0,75`, market points envanter tavanı `%4`, yakın book katılımı `%20` ve quote TTL `90s` olur. Hedef pace'in gerisinde kalındığında en fazla `1,15x` catch-up uygulanır; ancak drawdown `%1,5` veya points drawdown freni üzerindeyse bu boost kapalıdır.
+- Points quote baz büyüklüğü `%0,75`, market points envanter tavanı `%4`, yakın book katılımı `%20` ve quote TTL `90s` olur. P3 rank-chasing aktifken hedef pace'in altında kalındığında en fazla `1,25x` catch-up uygulanır; ancak drawdown `%1,5` veya points drawdown freni üzerindeyse bu boost kapalıdır.
 - Genel stratejinin ilk `%35` için uyguladığı `preserve` küçültmesi, volume-max modunda `balanced` tabanına yükseltilir; liderken maker hacmi gereksiz yavaşlatılmaz. Hard exposure ve drawdown limitleri aynen kalır.
 - `HOLD_DURING_DRAFT_ROUND=true` ile tur başlamadan yeni quote açılmaz; mevcut açık emirler iptal edilerek reset öncesi sermaye korunur. Round aktif olduğunda admission kontrolü zorunludur.
 - API'nin 10 Ağustos durumunda queue position `5.922`, Round 1 batch size `500` olduğundan admission kesinleşmeden trade hacmi üretilemez.

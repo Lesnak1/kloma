@@ -9,6 +9,7 @@ import {
   explicitMarketMultiplier,
   portfolioDrawdownPct,
   portfolioGrossExposure,
+  rankChaseTargetForRound,
   volumePaceForRound,
   volumeMultiplierForStanding,
 } from "@/src/risk";
@@ -57,14 +58,16 @@ export function volumeMaxRiskMode(riskMode: RiskMode, enabled: boolean): RiskMod
   return enabled && riskMode === "preserve" ? "balanced" : riskMode;
 }
 
-function volumeMaxStrategyConfig(
+export function volumeMaxStrategyConfig(
   config: BotConfig,
   enabled: boolean,
   paceRatio: number | null,
   drawdownPct: number,
+  rankChasingActive = false,
 ): BotConfig {
   if (!enabled) return config;
-  const belowPace = paceRatio !== null && paceRatio < 0.85;
+  const requiredPaceRatio = rankChasingActive ? 1 : 0.85;
+  const belowPace = paceRatio !== null && paceRatio < requiredPaceRatio;
   const capitalHealthy = drawdownPct < Math.min(config.pointsDrawdownStopPct, 1.5);
   const catchupScale = belowPace && capitalHealthy ? config.volumeMaxCatchupScale : 1;
   return {
@@ -299,6 +302,14 @@ export class TradingEngine {
       this.api.getLeaderboard(),
       this.api.getActiveOrders(),
     ]);
+    const activeRoundLeaderboard = activeRound && leaderboard && leaderboard.roundNumber !== activeRound.roundNumber
+      ? null
+      : leaderboard;
+    if (volumeMaxActive && leaderboard && !activeRoundLeaderboard) {
+      warnings.push(
+        `Leaderboard round ${leaderboard.roundNumber} does not match active round ${activeRound!.roundNumber}; rank chasing is disabled for this tick.`,
+      );
+    }
     const startingBalance = Number(activeRound && "startingBalanceUsdl" in activeRound
       ? activeRound.startingBalanceUsdl
       : this.config.startingBalanceUsdl) || this.config.startingBalanceUsdl;
@@ -308,20 +319,30 @@ export class TradingEngine {
       : 0;
     const drawdownReferenceValue = Math.max(startingBalance, peakPortfolioValue);
     const drawdownPct = portfolioDrawdownPct(portfolio.portfolioValue, drawdownReferenceValue);
-    const standing = assessStanding(leaderboard, {
+    const standing = assessStanding(activeRoundLeaderboard, {
       handle: this.config.handle,
       walletAddress: this.config.walletAddress,
     });
-    const tiers = standingTiers(leaderboard?.volumeMultiplierTiers, competition.featuredRound?.volumeMultiplierTiers);
+    const tiers = standingTiers(activeRoundLeaderboard?.volumeMultiplierTiers, competition.featuredRound?.volumeMultiplierTiers);
     const volumeMultiplier = volumeMultiplierForStanding(tiers, standing.volume);
+    const rankChaseTarget = volumeMaxActive
+      ? rankChaseTargetForRound(activeRound!, activeRoundLeaderboard, {
+          baselineTargetVolume: this.config.volumeMaxTargetVolume,
+          enabled: this.config.volumeRankChasingEnabled,
+          safetyMarginPct: this.config.volumeRankChasingMarginPct,
+          minElapsedPct: this.config.volumeRankChasingMinElapsedPct,
+          maxTargetVolume: this.config.volumeRankChasingMaxTargetVolume,
+        })
+      : null;
     const volumePace = volumeMaxActive
-      ? volumePaceForRound(activeRound!, standing.volume, this.config.volumeMaxTargetVolume)
+      ? volumePaceForRound(activeRound!, standing.volume, rankChaseTarget!.targetVolume)
       : null;
     const strategyConfig = volumeMaxStrategyConfig(
       this.config,
       volumeMaxActive,
       volumePace?.paceRatio ?? null,
       drawdownPct,
+      rankChaseTarget?.leaderboardProjectionActive ?? false,
     );
     const strategyRiskMode = volumeMaxRiskMode(standing.riskMode, volumeMaxActive);
 
@@ -360,8 +381,14 @@ export class TradingEngine {
             ? {
                 volumeMaxMode: true,
                 volumeTarget: volumePace.targetVolume,
+                volumeBaselineTarget: rankChaseTarget!.baselineTargetVolume,
                 expectedVolume: volumePace.expectedVolume,
                 volumePaceRatio: volumePace.paceRatio,
+                rankChasingActive: rankChaseTarget!.leaderboardProjectionActive,
+                thirdPlaceVolume: rankChaseTarget!.thirdPlaceVolume,
+                thirdPlacePoints: rankChaseTarget!.thirdPlacePoints,
+                thirdPlaceProjectedVolume: rankChaseTarget!.thirdPlaceProjectedVolume,
+                thirdPlaceProjectedPoints: rankChaseTarget!.thirdPlaceProjectedPoints,
               }
             : {}),
         },
@@ -496,8 +523,14 @@ export class TradingEngine {
           ? {
               volumeMaxMode: true,
               volumeTarget: volumePace.targetVolume,
+              volumeBaselineTarget: rankChaseTarget!.baselineTargetVolume,
               expectedVolume: volumePace.expectedVolume,
               volumePaceRatio: volumePace.paceRatio,
+              rankChasingActive: rankChaseTarget!.leaderboardProjectionActive,
+              thirdPlaceVolume: rankChaseTarget!.thirdPlaceVolume,
+              thirdPlacePoints: rankChaseTarget!.thirdPlacePoints,
+              thirdPlaceProjectedVolume: rankChaseTarget!.thirdPlaceProjectedVolume,
+              thirdPlaceProjectedPoints: rankChaseTarget!.thirdPlaceProjectedPoints,
             }
           : {}),
       },

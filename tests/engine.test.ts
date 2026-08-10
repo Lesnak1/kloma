@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { TradingEngine, volumeMaxRiskMode } from "@/src/engine";
+import { TradingEngine, volumeMaxRiskMode, volumeMaxStrategyConfig } from "@/src/engine";
 import type { LoafApi } from "@/src/loaf-client";
 import type { SchedulerControl } from "@/src/scheduler";
 import { candles, config, detail, market } from "./helpers";
@@ -84,7 +84,16 @@ test("volume-max round scans every LIVE market and force-includes the featured a
       };
     },
     async getQueuePosition() { return { position: null, finalPlacement: null, queueCount: 0 }; },
-    async getLeaderboard() { return { roundNumber: 1, entries: [] }; },
+    async getLeaderboard() {
+      return {
+        roundNumber: 1,
+        entries: [
+          { rank: 1, handle: "one", walletAddress: "0x1", points: 1_200_000, volume: 1_200_000, pnl: 0 },
+          { rank: 2, handle: "two", walletAddress: "0x2", points: 1_100_000, volume: 1_100_000, pnl: 0 },
+          { rank: 3, handle: "three", walletAddress: "0x3", points: 1_000_000, volume: 1_000_000, pnl: 0 },
+        ],
+      };
+    },
     async getMarkets() { return { properties: markets, competitionModeActive: true }; },
     async getMarketDetail(tokenName) {
       requested.add(tokenName);
@@ -118,13 +127,24 @@ test("volume-max round scans every LIVE market and force-includes the featured a
   assert.equal(requested.has("opera"), true);
   assert.equal(report.actions.filter((action) => action.action === "place").length, 10);
   assert.equal(report.leaderboard?.volumeMaxMode, true);
-  assert.equal(report.leaderboard?.volumeTarget, 20_000_000);
+  assert.ok((report.leaderboard?.volumeTarget ?? 0) > 30_000_000);
+  assert.equal(report.leaderboard?.rankChasingActive, true);
+  assert.equal(report.leaderboard?.thirdPlaceVolume, 1_000_000);
 });
 
 test("volume-max mode does not shrink a leading trader below balanced maker sizing", () => {
   assert.equal(volumeMaxRiskMode("preserve", true), "balanced");
   assert.equal(volumeMaxRiskMode("attack", true), "attack");
   assert.equal(volumeMaxRiskMode("preserve", false), "preserve");
+});
+
+test("rank chasing uses the full catch-up scale until the projected P3 pace is met", () => {
+  const base = config({ volumeMaxPointsOrderNotionalPct: 0.75, volumeMaxCatchupScale: 1.25 });
+  const passive = volumeMaxStrategyConfig(base, true, 0.9, 0, false);
+  const chasing = volumeMaxStrategyConfig(base, true, 0.9, 0, true);
+  assert.equal(passive.pointsOrderNotionalPct, 0.75);
+  assert.equal(chasing.pointsOrderNotionalPct, 0.9375);
+  assert.equal(volumeMaxStrategyConfig(base, true, 0.9, 1.5, true).pointsOrderNotionalPct, 0.75);
 });
 
 test("terminal target round cancels open orders before disabling the scheduler", async () => {
