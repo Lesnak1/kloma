@@ -79,6 +79,7 @@ test("telemetry retention is capped for free-tier durable storage", () => {
     HOLD_DURING_DRAFT_ROUND: undefined,
     VOLUME_MAX_MODE: undefined,
     VOLUME_MAX_ROUND_NUMBER: undefined,
+    VOLUME_MAX_FEATURED_ONLY: undefined,
     VOLUME_MAX_TARGET_VOLUME: undefined,
     VOLUME_RANK_CHASING_ENABLED: undefined,
     VOLUME_RANK_CHASING_MARGIN_PCT: undefined,
@@ -99,6 +100,7 @@ test("telemetry retention is capped for free-tier durable storage", () => {
     assert.equal(config.compoundingEnabled, true);
     assert.equal(config.holdDuringDraftRound, true);
     assert.equal(config.volumeMaxMode, true);
+    assert.equal(config.volumeMaxFeaturedOnly, true);
     assert.equal(config.volumeMaxTargetVolume, 30_000_000);
     assert.equal(config.volumeRankChasingEnabled, true);
     assert.equal(config.volumeRankChasingMarginPct, 12);

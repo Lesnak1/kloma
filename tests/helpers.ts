@@ -29,6 +29,7 @@ export function config(overrides: Partial<BotConfig> = {}): BotConfig {
     pointsMaxRoundTripCostBps: 90,
     volumeMaxMode: true,
     volumeMaxRoundNumber: 1,
+    volumeMaxFeaturedOnly: true,
     volumeMaxTargetVolume: 30_000_000,
     volumeRankChasingEnabled: true,
     volumeRankChasingMarginPct: 12,

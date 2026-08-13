@@ -428,11 +428,20 @@ export class TradingEngine {
     const positions = positionMap(portfolio.positions);
     const live = marketList.properties.filter((market) => market.status === "LIVE");
     const explicitCompetitionMarkets = activeRound ? live.filter((market) => market.isCompetition === true) : [];
+    const featuredRoundToken = featuredToken(competition.featuredRound);
     let eligible = volumeMaxActive
       ? live
       : explicitCompetitionMarkets.length > 0
         ? explicitCompetitionMarkets
         : live;
+    if (volumeMaxActive && this.config.volumeMaxFeaturedOnly) {
+      eligible = featuredRoundToken
+        ? live.filter((market) => market.tokenName.toLowerCase() === featuredRoundToken)
+        : [];
+      if (eligible.length === 0) {
+        warnings.push("Round 1 featured market was not found in the LIVE catalog; no order will be sent.");
+      }
+    }
     if (this.config.targetTokens.length > 0 && !volumeMaxActive) {
       const allowlist = new Set(this.config.targetTokens);
       eligible = eligible.filter((market) => allowlist.has(market.tokenName.toLowerCase()));
@@ -449,7 +458,7 @@ export class TradingEngine {
           marketScore(left, explicitMarketMultiplier(tiers, left)),
       );
     const featuredMarket = volumeMaxActive
-      ? eligibleByToken.get(featuredToken(competition.featuredRound) ?? "")
+      ? eligibleByToken.get(featuredRoundToken ?? "")
       : undefined;
     const selectionLimit = volumeMaxActive
       ? this.config.volumeMaxMarketsPerTick

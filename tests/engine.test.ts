@@ -50,7 +50,7 @@ test("a scheduled draft round holds new orders even when outside-round trading w
   assert.equal(state.readPastCompetition, false);
 });
 
-test("volume-max round scans every LIVE market and force-includes the featured arena asset", async () => {
+test("volume-max round targets only the featured arena asset by default", async () => {
   const now = Math.floor(Date.now() / 1000);
   const series = candles(now, 0.0001);
   const tokens = ["terafab", "opera", "eiffel", "liberty", "monaco", "marina", "goldengate", "yongin", "metlife", "rainier", "deepwaterbay"];
@@ -122,10 +122,10 @@ test("volume-max round scans every LIVE market and force-includes the featured a
   };
 
   const report = await new TradingEngine(api, config({ volumeMaxMarketsPerTick: 12 })).run();
-  assert.equal(requested.size, tokens.length);
+  assert.equal(requested.size, 1);
   assert.equal(requested.has("terafab"), true);
-  assert.equal(requested.has("opera"), true);
-  assert.equal(report.actions.filter((action) => action.action === "place").length, 10);
+  assert.equal(requested.has("opera"), false);
+  assert.equal(report.actions.filter((action) => action.action === "place").length, 1);
   assert.equal(report.leaderboard?.volumeMaxMode, true);
   assert.ok((report.leaderboard?.volumeTarget ?? 0) > 30_000_000);
   assert.equal(report.leaderboard?.rankChasingActive, true);
@@ -181,7 +181,14 @@ test("a fresh WebSocket cache avoids REST book and candle reads during an active
     async placeOrder() { throw new Error("dry-run must not place"); },
   };
   const cache = new Map([[market.tokenName, { detail, candles: series, updatedAt: Date.now() }]]);
-  const report = await new TradingEngine(api, config(), undefined, {}, undefined, cache).run();
+  const report = await new TradingEngine(
+    api,
+    config({ volumeMaxFeaturedOnly: false }),
+    undefined,
+    {},
+    undefined,
+    cache,
+  ).run();
   assert.equal(marketReads, 0);
   assert.equal(report.decisions.length, 1);
 });

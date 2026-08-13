@@ -27,6 +27,7 @@ export interface BotConfig {
   pointsMaxRoundTripCostBps: number;
   volumeMaxMode: boolean;
   volumeMaxRoundNumber: number;
+  volumeMaxFeaturedOnly: boolean;
   volumeMaxTargetVolume: number;
   volumeRankChasingEnabled: boolean;
   volumeRankChasingMarginPct: number;
@@ -206,6 +207,7 @@ export function loadConfig(options: { requireApiKey?: boolean } = {}): BotConfig
     pointsMaxRoundTripCostBps: numberInRange("POINTS_MAX_ROUND_TRIP_COST_BPS", 90, 0, 200),
     volumeMaxMode: bool("VOLUME_MAX_MODE", true),
     volumeMaxRoundNumber: Math.floor(numberInRange("VOLUME_MAX_ROUND_NUMBER", 1, 1, 100)),
+    volumeMaxFeaturedOnly: bool("VOLUME_MAX_FEATURED_ONLY", true),
     volumeMaxTargetVolume: numberInRange("VOLUME_MAX_TARGET_VOLUME", 30_000_000, 1_000_000, 10_000_000_000),
     volumeRankChasingEnabled: bool("VOLUME_RANK_CHASING_ENABLED", true),
     volumeRankChasingMarginPct: numberInRange("VOLUME_RANK_CHASING_MARGIN_PCT", 12, 0, 100),

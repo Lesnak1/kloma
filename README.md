@@ -179,6 +179,7 @@ Tam liste [.env.example](./.env.example) içindedir.
 | `POINTS_DRAWDOWN_STOP_PCT` | `2` | Bu drawdown seviyesinde yeni points envanteri durur |
 | `POINTS_MAX_ROUND_TRIP_COST_BPS` | `90` | Points döngüsünün ham tahmini maliyet bütçesi; rank modu bunu preserve/balanced/defend için aşağı ölçekler |
 | `VOLUME_MAX_MODE` | `true` | Round 1 Volumemaxxing aktifken volume-specific maker stratejisini açar |
+| `VOLUME_MAX_FEATURED_ONLY` | `true` | Round 1 emirlerini yalnızca platformun featured arena asset'ine (TERA) sınırlar |
 | `VOLUME_MAX_TARGET_VOLUME` | `30000000` | Round 1 için 5× tier baseline pace floor; hard limit veya volume cap değildir |
 | `VOLUME_RANK_CHASING_ENABLED` | `true` | Yeterli leaderboard verisi oluşunca P3’ün projected final raw volume’üne güvenlik marjı ekleyerek pace hedefini otomatik yükseltir |
 | `VOLUME_RANK_CHASING_MARGIN_PCT` / `VOLUME_RANK_CHASING_MIN_ELAPSED_PCT` | `12` / `2` | P3 final-volume tahminine eklenen marj ve tahmin başlatma eşiği |
