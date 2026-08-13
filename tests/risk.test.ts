@@ -8,6 +8,7 @@ import {
   volumePaceForRound,
   volumeMultiplierForStanding,
 } from "@/src/risk";
+import { volumeMaxRiskMode } from "@/src/engine";
 import { market } from "./helpers";
 
 test("bottom thirty standing selects bounded attack mode", () => {
@@ -145,4 +146,11 @@ test("rank chasing remains at the baseline before enough data exists", () => {
   );
   assert.equal(target.leaderboardProjectionActive, false);
   assert.equal(target.targetVolume, 30_000_000);
+});
+
+test("volume maximization stays in bounded attack mode while behind target pace", () => {
+  assert.equal(volumeMaxRiskMode("preserve", true, 0.99), "attack");
+  assert.equal(volumeMaxRiskMode("balanced", true, null), "balanced");
+  assert.equal(volumeMaxRiskMode("preserve", true, 1), "balanced");
+  assert.equal(volumeMaxRiskMode("attack", false, 0), "attack");
 });

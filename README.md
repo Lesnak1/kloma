@@ -181,7 +181,7 @@ Tam liste [.env.example](./.env.example) içindedir.
 | `VOLUME_MAX_TARGET_VOLUME` | `30000000` | Round 1 için 5× tier baseline pace floor; hard limit veya volume cap değildir |
 | `VOLUME_RANK_CHASING_ENABLED` | `true` | Yeterli leaderboard verisi oluşunca P3’ün projected final raw volume’üne güvenlik marjı ekleyerek pace hedefini otomatik yükseltir |
 | `VOLUME_RANK_CHASING_MARGIN_PCT` / `VOLUME_RANK_CHASING_MIN_ELAPSED_PCT` | `12` / `2` | P3 final-volume tahminine eklenen marj ve tahmin başlatma eşiği |
-| `VOLUME_RANK_CHASING_MAX_TARGET_VOLUME` | `1000000000` | Sadece bozuk/anormal leaderboard verisine karşı telemetry tavanı; bot için hedef değildir |
+| `VOLUME_RANK_CHASING_MAX_TARGET_VOLUME` | `5000000000` | Sadece bozuk/anormal leaderboard verisine karşı fail-safe tavanı; bot için hedef değildir |
 | `VOLUME_MAX_MARKETS_PER_TICK` / `VOLUME_MAX_ORDERS_PER_TICK` | `12` / `10` | Round 1'de tüm LIVE market + Terafab tarama ve emir değerlendirme tavanı |
 | `VOLUME_MAX_POINTS_ORDER_NOTIONAL_PCT` | `0.75` | Round 1 points quote baz büyüklüğü; pace gerisinde en fazla 1.25× artar |
 | `VOLUME_MAX_POINTS_MAX_MARKET_EXPOSURE_PCT` | `4` | Round 1 points market başına envanter tavanı |

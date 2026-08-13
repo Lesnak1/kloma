@@ -56,7 +56,15 @@ function featuredToken(round: FeaturedRound | null): string | undefined {
   return token || undefined;
 }
 
-export function volumeMaxRiskMode(riskMode: RiskMode, enabled: boolean): RiskMode {
+export function volumeMaxRiskMode(
+  riskMode: RiskMode,
+  enabled: boolean,
+  paceRatio: number | null = null,
+): RiskMode {
+  // Rank is determined by points/volume in Volumemaxxing. Until the bot reaches
+  // its rank-chase pace, use the bounded attack multiplier rather than treating
+  // a temporarily good percentile as a reason to reduce liquidity provision.
+  if (enabled && paceRatio !== null && paceRatio < 1) return "attack";
   return enabled && riskMode === "preserve" ? "balanced" : riskMode;
 }
 
@@ -75,7 +83,7 @@ export function volumeMaxStrategyConfig(
   return {
     ...config,
     pointsOrderNotionalPct: Math.min(
-      5,
+      20,
       Math.max(config.pointsOrderNotionalPct, config.volumeMaxPointsOrderNotionalPct) * catchupScale,
     ),
     pointsMaxMarketExposurePct: Math.min(
@@ -349,11 +357,15 @@ export class TradingEngine {
     const strategyConfig = volumeMaxStrategyConfig(
       this.config,
       volumeMaxActive,
-      volumePace?.paceRatio ?? null,
+      volumePace?.paceRatio ?? 0,
       drawdownPct,
       rankChaseTarget?.leaderboardProjectionActive ?? false,
     );
-    const strategyRiskMode = volumeMaxRiskMode(standing.riskMode, volumeMaxActive);
+    const strategyRiskMode = volumeMaxRiskMode(
+      standing.riskMode,
+      volumeMaxActive,
+      volumePace?.paceRatio ?? 0,
+    );
 
     if (drawdownPct >= this.config.maxDrawdownPct) {
       if (this.config.tradingEnabled) {

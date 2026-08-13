@@ -107,3 +107,12 @@ test("telemetry retention is capped for free-tier durable storage", () => {
     assert.equal(config.volumeMaxCatchupScale, 1.25);
   });
 });
+
+test("round-one rank chasing accepts a multi-billion volume fail-safe ceiling", () => {
+  withEnvironment({
+    ...baseEnvironment,
+    VOLUME_RANK_CHASING_MAX_TARGET_VOLUME: "5000000000",
+  }, () => {
+    assert.equal(loadConfig().volumeRankChasingMaxTargetVolume, 5_000_000_000);
+  });
+});
