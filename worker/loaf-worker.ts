@@ -18,6 +18,7 @@ interface WorkerSettings {
   catalogRefreshMs: number;
   candleRefreshMs: number;
   maxSubscriptions: number;
+  eligibilityRetryMs: number;
 }
 
 function numberEnv(name: string, fallback: number, minimum: number, maximum: number): number {
@@ -44,7 +45,12 @@ function settingsFor(config: BotConfig): WorkerSettings {
     catalogRefreshMs: numberEnv("WORKER_CATALOG_REFRESH_MS", 60_000, 15_000, 15 * 60_000),
     candleRefreshMs: numberEnv("WORKER_CANDLE_REFRESH_MS", 5 * 60_000, 60_000, 60 * 60_000),
     maxSubscriptions: numberEnv("WORKER_MAX_SUBSCRIPTIONS", 24, 1, 100),
+    eligibilityRetryMs: numberEnv("WORKER_ELIGIBILITY_RETRY_MS", 5 * 60_000, 30_000, 15 * 60_000),
   };
+}
+
+function exchangeEligibilityRejection(warnings: string[]): string | undefined {
+  return warnings.find((warning) => /not a competition participant|competition eligibility|HTTP 403/i.test(warning));
 }
 
 function log(event: string, fields: Record<string, unknown> = {}): void {
@@ -65,6 +71,7 @@ class LoafWebsocketWorker {
   private heartbeatTimer: NodeJS.Timeout | null = null;
   private catalogTimer: NodeJS.Timeout | null = null;
   private candleTimer: NodeJS.Timeout | null = null;
+  private eligibilityRetryAt = 0;
 
   constructor(
     private readonly config: BotConfig,
@@ -211,6 +218,10 @@ class LoafWebsocketWorker {
 
   private async runQueuedTick(reason: string): Promise<void> {
     if (this.stopped || this.running || !this.queued) return;
+    if (Date.now() < this.eligibilityRetryAt) {
+      this.queued = false;
+      return;
+    }
     if (Date.now() - this.lastTickAt < this.settings.minTickMs) return;
     this.queued = false;
     this.running = true;
@@ -221,6 +232,14 @@ class LoafWebsocketWorker {
         log("tick_skipped", { reason, skipped: result.skipped });
       } else if (result.report) {
         const leaderboard = result.report.leaderboard;
+        const eligibilityRejection = exchangeEligibilityRejection(result.report.warnings);
+        if (eligibilityRejection) {
+          this.eligibilityRetryAt = Date.now() + this.settings.eligibilityRetryMs;
+          log("exchange_eligibility_backoff", {
+            retryAfterMs: this.settings.eligibilityRetryMs,
+            reason: eligibilityRejection,
+          });
+        }
         log("tick_complete", {
           reason,
           mode: result.report.mode,
