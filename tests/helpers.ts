@@ -8,6 +8,7 @@ export function config(overrides: Partial<BotConfig> = {}): BotConfig {
     cronSecret: "s".repeat(32),
     tradingEnabled: false,
     allowOutsideCompetition: false,
+    queuePositionAdvisory: false,
     holdDuringDraftRound: true,
     killSwitch: false,
     targetTokens: [],

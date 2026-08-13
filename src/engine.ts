@@ -293,7 +293,7 @@ export class TradingEngine {
         warnings.push(`Competition eligibility check failed: ${error instanceof Error ? error.message : "unknown error"}`);
         admitted = false;
       }
-      if (!admitted) {
+      if (!admitted && !this.config.queuePositionAdvisory) {
         return {
           runId,
           timestamp: new Date(startedAt).toISOString(),
@@ -310,6 +310,11 @@ export class TradingEngine {
           warnings,
           durationMs: Date.now() - startedAt,
         };
+      }
+      if (!admitted) {
+        warnings.push(
+          "Competition queue reports this account as not admitted; QUEUE_POSITION_ADVISORY=true delegates final eligibility to Loaf's order endpoint.",
+        );
       }
     }
 

@@ -4,6 +4,7 @@ export interface BotConfig {
   cronSecret: string;
   tradingEnabled: boolean;
   allowOutsideCompetition: boolean;
+  queuePositionAdvisory: boolean;
   holdDuringDraftRound: boolean;
   killSwitch: boolean;
   handle?: string;
@@ -179,6 +180,7 @@ export function loadConfig(options: { requireApiKey?: boolean } = {}): BotConfig
     cronSecret,
     tradingEnabled,
     allowOutsideCompetition: bool("ALLOW_OUTSIDE_COMPETITION", false),
+    queuePositionAdvisory: bool("QUEUE_POSITION_ADVISORY", false),
     holdDuringDraftRound: bool("HOLD_DURING_DRAFT_ROUND", true),
     killSwitch: bool("KILL_SWITCH", false),
     handle,

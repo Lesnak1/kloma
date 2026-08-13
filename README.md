@@ -159,6 +159,7 @@ Tam liste [.env.example](./.env.example) içindedir.
 | `TRADING_ENABLED` | `false` | `false` iken hiçbir trade write göndermez |
 | `LOAF_HANDLE` / `LOAF_WALLET_ADDRESS` | boş | Kendi rank’ınızı bularak preserve/defend/attack seçer |
 | `ALLOW_OUTSIDE_COMPETITION` | `false` | Aktif tur dışında yeni emir üretimini engeller |
+| `QUEUE_POSITION_ADVISORY` | `false` | `true` iken queue yanıtı yalnızca teşhistir; nihai işlem iznini Loaf'ın emir endpoint'i belirler |
 | `HOLD_DURING_DRAFT_ROUND` | `true` | Açıklanmış DRAFT turunda quote cleanup yapar ve 100k reset öncesi yeni emir açmaz |
 | `STOP_AFTER_ROUND_NUMBER` | boş | Terminal round sonrası cleanup + scheduler stop |
 | `REQUIRE_DURABLE_LOCK` | `false` | Live için `true`; Redis yoksa tick’i fail-closed durdurur |

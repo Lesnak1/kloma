@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { TradingEngine } from "@/src/engine";
 import type { LoafApi } from "@/src/loaf-client";
-import { config } from "./helpers";
+import { candles, config, detail, market } from "./helpers";
 
 function forbidden(message = "should not be called"): never {
   throw new Error(message);
@@ -35,6 +35,59 @@ test("an account outside the admitted batch cannot reach portfolio or order writ
   assert.equal(report.mode, "halted");
   assert.equal(report.competition.admitted, false);
   assert.equal(downstreamReads, 0);
+});
+
+test("queue position can be advisory while the exchange remains the final order gate", async () => {
+  const now = Math.floor(Date.now() / 1000);
+  let placements = 0;
+  const api: LoafApi = {
+    async getCompetition() {
+      return {
+        rounds: [{ roundNumber: 1, name: "Volumemaxxing", status: "ACTIVE" }],
+        featuredRound: {
+          roundNumber: 1,
+          name: "Volumemaxxing",
+          status: "ACTIVE",
+          startsAt: now - 60 * 60,
+          endsAt: now + 60 * 60,
+          startingBalanceUsdl: 100_000,
+          newAssetProperty: { propertyId: market.propertyId, tokenName: market.tokenName },
+        },
+        makerFeeBps: 0,
+        takerFeeBps: 10,
+        queueCount: 100,
+      };
+    },
+    async getQueuePosition() { return { position: 12, queueCount: 100, finalPlacement: null }; },
+    async getLeaderboard() { return { roundNumber: 1, entries: [] }; },
+    async getMarkets() { return { properties: [market] }; },
+    async getMarketDetail() { return detail; },
+    async getCandles() { return { resolution: "5m", candles: candles(now, 0.0001), oldestTs: now - 3600, hasMore: false }; },
+    async getPortfolio() {
+      return {
+        cash: 100_000,
+        frozen: 0,
+        portfolioValue: 100_000,
+        portfolioPnl: 0,
+        portfolioPnlPercent: 0,
+        positions: [],
+      };
+    },
+    async getActiveOrders() { return []; },
+    async cancelOrder() { throw new Error("not needed"); },
+    async cancelAll() { throw new Error("not needed"); },
+    async placeOrder() { placements += 1; return { success: true, orderId: 1 }; },
+  };
+  const report = await new TradingEngine(api, config({
+    tradingEnabled: true,
+    queuePositionAdvisory: true,
+    volumeMaxTargetVolume: 1_000_000,
+    volumeMaxPointsOrderNotionalPct: 1,
+  })).run();
+  assert.equal(report.mode, "live");
+  assert.equal(report.competition.admitted, false);
+  assert.ok(placements > 0);
+  assert.match(report.warnings.join(" "), /QUEUE_POSITION_ADVISORY/);
 });
 
 test("kill switch cancels all before any market evaluation", async () => {

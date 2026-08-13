@@ -227,9 +227,16 @@ class LoafWebsocketWorker {
           durationMs: result.report.durationMs,
           actionCount: result.report.actions.length,
           warningCount: result.report.warnings.length,
+          admitted: result.report.competition.admitted,
           rank: leaderboard?.rank ?? null,
           volume: leaderboard?.volume ?? null,
           volumeTarget: leaderboard?.volumeTarget ?? null,
+          actions: result.report.actions.slice(0, 3).map((action) => ({
+            action: action.action,
+            side: action.side ?? null,
+            result: action.result,
+          })),
+          warnings: result.report.warnings.slice(0, 2),
         });
       }
     } catch (error) {

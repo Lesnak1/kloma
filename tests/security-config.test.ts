@@ -91,6 +91,7 @@ test("telemetry retention is capped for free-tier durable storage", () => {
     VOLUME_MAX_POINTS_MAX_MARKET_EXPOSURE_PCT: undefined,
     VOLUME_MAX_BOOK_PARTICIPATION_PCT: undefined,
     VOLUME_MAX_QUOTE_TTL_SECONDS: undefined,
+    QUEUE_POSITION_ADVISORY: undefined,
   }, () => {
     const config = loadConfig();
     assert.equal(config.telemetryMaxRuns, 2_000);
@@ -105,6 +106,7 @@ test("telemetry retention is capped for free-tier durable storage", () => {
     assert.equal(config.volumeMaxOrdersPerTick, 10);
     assert.equal(config.volumeMaxPointsOrderNotionalPct, 0.75);
     assert.equal(config.volumeMaxCatchupScale, 1.25);
+    assert.equal(config.queuePositionAdvisory, false);
   });
 });
 
